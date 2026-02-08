@@ -295,22 +295,35 @@
  *           type: boolean
  *           example: true
  *         data:
- *           $ref: '#/components/schemas/Hotel'
- *         matches:
- *           type: array
- *           items:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               address:
- *                 type: string
- *               rating:
- *                 type: number
- *               token:
- *                 type: string
- *               thumbnail:
- *                 type: string
+ *           type: object
+ *           properties:
+ *             _id:
+ *               type: string
+ *             name:
+ *               type: string
+ *             address:
+ *               type: string
+ *             googleRating:
+ *               type: number
+ *             totalScore:
+ *               type: number
+ *         match:
+ *           type: object
+ *           properties:
+ *             name:
+ *               type: string
+ *             address:
+ *               type: string
+ *             rating:
+ *               type: number
+ *             token:
+ *               type: string
+ *             thumbnail:
+ *               type: string
+ *             matchScore:
+ *               type: number
+ *         message:
+ *           type: string
  * 
  *       example:
  *         businessInfo:

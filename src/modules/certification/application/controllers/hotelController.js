@@ -32,47 +32,48 @@ export const createHotel = asyncHandler(async (req, res) => {
         hotelName: hotel.businessInfo.name,
         searchQuery: `${hotel.businessInfo.name} ${hotel.businessInfo.contact.address}`,
         matchFound: !!match || candidates.length > 0,
-        autoMatched: !!match,
+        autoMatched: false, // Always false now as we require manual confirmation
         matchScore: match ? match.matchScore : (candidates.length > 0 ? candidates[0].matchScore : 0),
         candidatesCount: candidates.length,
         candidates: candidates.map(c => ({
             name: c.name,
             address: c.address,
             score: c.matchScore,
-            token: c.token
+            token: c.token,
+            matchLogs: c.matchLogs // Debugging
         }))
     });
     await matchLog.save();
 
-    if (match) {
-        // Auto-match found: Update hotel with token and rating
-        hotel.businessInfo.serpApiPropertyToken = match.property_token;
-        if (!hotel.scoring) hotel.scoring = {};
-        hotel.scoring.googleRating = match.overall_rating || 0;
-        await hotel.save();
-
-        res.status(201).json({
-            success: true,
-            data: hotel,
-            match: match,
-            message: "Hotel created and verified against Google Hotels."
-        });
-    } else if (candidates.length > 0) {
-        // Ambiguous: Return candidates for user selection
-        res.status(202).json({
-            success: true,
-            data: hotel,
-            candidates: candidates,
-            message: "Hotel created. Please select the correct Google Maps listing from the candidates."
-        });
-    } else {
-        // No match found
-        res.status(201).json({
-            success: true,
-            data: hotel,
-            message: "Hotel created. No corresponding Google Maps listing found."
-        });
-    }
+    // Always return 202 Created (Accepted) with candidates for manual confirmation
+    // We do NOT save the match automatically anymore.
+    res.status(202).json({
+        success: true,
+        data: {
+            _id: hotel._id,
+            name: hotel.businessInfo.name,
+            address: hotel.businessInfo.contact.address
+        },
+        // We provide the "best match" as the first suggestion if available
+        suggestedMatch: match ? {
+            name: match.name,
+            address: match.address || match.vicinity,
+            rating: match.overall_rating,
+            token: match.property_token,
+            thumbnail: match.thumbnail,
+            matchScore: match.matchScore,
+            matchLogs: match.matchLogs
+        } : null,
+        candidates: candidates.map(c => ({
+            name: c.name,
+            address: c.address,
+            matchScore: c.matchScore,
+            matchLogs: c.matchLogs,
+            token: c.token, // Ensure frontend has token to confirm
+            thumbnail: c.thumbnail
+        })),
+        message: "Hotel created. Please confirm the correct Google Maps listing."
+    });
 });
 
 /**

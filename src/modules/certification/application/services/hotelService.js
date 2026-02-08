@@ -15,6 +15,26 @@ import { calculateDataCompletion, calculateTotalScore } from './scoringService.j
  * @returns {Promise<Object>} The created hotel document.
  */
 export const createHotel = async (data) => {
+    // 0. Duplicate Check
+    const existingHotel = await Hotel.findOne({
+        $or: [
+            { 'businessInfo.contact.email': data.businessInfo.contact.email },
+            {
+                'businessInfo.name': { $regex: new RegExp(`^${data.businessInfo.name}$`, 'i') },
+                'businessInfo.contact.address': { $regex: new RegExp(`^${data.businessInfo.contact.address}$`, 'i') }
+            }
+        ]
+    });
+
+    if (existingHotel) {
+        const msg = existingHotel.businessInfo.contact.email === data.businessInfo.contact.email
+            ? `Hotel already registered with email: ${data.businessInfo.contact.email}`
+            : `Hotel already registered: ${data.businessInfo.name} at ${data.businessInfo.contact.address}`;
+        const error = new Error(msg);
+        error.statusCode = 409;
+        throw error;
+    }
+
     // Initial scoring calculation (Data Completion only)
     const dataScore = calculateDataCompletion(data);
 
