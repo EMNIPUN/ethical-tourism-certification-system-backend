@@ -24,12 +24,6 @@ Please read the specific documentation for the area you are working on:
 The codebase is organized by **Feature Modules**.
 
 ```
-public/
-├── auth/                    # [Owner: Sadeesha] Authentication & RBAC
-│   ├── controllers/
-│   ├── routes/
-│   └── validation/
-│
 src/
 ├── common/                  # Shared resources
 │   ├── config/
@@ -37,7 +31,9 @@ src/
 │   ├── models/
 │   ├── swagger/
 │   ├── utils/
-│   └── validations/
+│   ├── validations/
+│   ├── routes/              # [NEW] Auth routes
+│   └── controllers/         # [NEW] Auth controllers
 │
 ├── modules/
 

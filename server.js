@@ -19,7 +19,7 @@ mainApp.get('/', (req, res) => {
 mainApp.listen(PORT, () => {
     console.log('\n    ===================================================');
     console.log(`    Server is running on port ${PORT}`);
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'development') {
         console.log(`    Swagger available at http://localhost:${PORT}/api/v1/api-docs`);
     }
 });

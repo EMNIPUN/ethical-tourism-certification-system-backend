@@ -1,6 +1,6 @@
-import User from '../../../src/common/models/User.js';
+import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
-import { registerSchema, loginSchema } from '../validation/authValidation.js';
+import { registerSchema, loginSchema } from '../validations/authValidation.js';
 
 // @desc    Register user
 // @route   POST /api/v1/auth/register

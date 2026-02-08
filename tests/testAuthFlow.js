@@ -20,8 +20,13 @@ const testAuth = async () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email, password, role })
             });
+            if (!regRes.ok) {
+                const text = await regRes.text();
+                console.log(`[FAIL] Register ${role} Status: ${regRes.status}`);
+                console.log(`Response Body: ${text.substring(0, 500)}`);
+                continue;
+            }
             const regData = await regRes.json();
-
             if (regRes.status === 201) {
                 console.log(`[PASS] Registered ${role}`);
             } else {

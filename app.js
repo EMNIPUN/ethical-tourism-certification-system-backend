@@ -9,7 +9,7 @@ import searchModuleRoutes from './src/modules/search/routes/index.js';
 import certificationAppRoutes from './src/modules/certification/application/routes/index.js';
 import certificationLifecycleRoutes from './src/modules/certification/lifecycle/routes/index.js';
 import auditModuleRoutes from './src/modules/audit/routes/index.js';
-import authRoutes from './public/auth/routes/authRoutes.js';
+import authRoutes from './src/common/routes/authRoutes.js';
 
 const app = express();
 
