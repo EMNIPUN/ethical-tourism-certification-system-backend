@@ -24,6 +24,12 @@ Please read the specific documentation for the area you are working on:
 The codebase is organized by **Feature Modules**.
 
 ```
+public/
+├── auth/                    # [Owner: Sadeesha] Authentication & RBAC
+│   ├── controllers/
+│   ├── routes/
+│   └── validation/
+│
 src/
 ├── common/                  # Shared resources
 │   ├── config/
@@ -34,6 +40,7 @@ src/
 │   └── validations/
 │
 ├── modules/
+
 │   ├── audit/               # [Owner: Eric]
 │   │   ├── controllers/
 │   │   ├── middleware/

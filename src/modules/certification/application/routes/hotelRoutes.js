@@ -8,6 +8,7 @@ import {
   confirmMatch,
 } from '../controllers/hotelController.js';
 import { validate } from '../../../../common/middleware/validateMiddleware.js';
+import { protect, authorize } from '../../../../common/middleware/authMiddleware.js';
 import {
   createHotelSchema,
   updateHotelSchema,
@@ -21,8 +22,8 @@ import {
 const router = express.Router();
 
 // Analytics routes (Must be before /:id routes)
-router.get('/analytics', getMatchingStats);
-router.get('/analytics/:id', getMatchLogById);
+router.get('/analytics', protect, authorize('Admin'), getMatchingStats);
+router.get('/analytics/:id', protect, authorize('Admin'), getMatchLogById);
 
 /**
  * @swagger
@@ -37,6 +38,8 @@ router.get('/analytics/:id', getMatchLogById);
  *   get:
  *     summary: Retrieve a list of hotels
  *     tags: [Hotels]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: A list of hotels
@@ -47,6 +50,8 @@ router.get('/analytics/:id', getMatchLogById);
  *   post:
  *     summary: Create a new hotel
  *     tags: [Hotels]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -128,8 +133,8 @@ router.get('/analytics/:id', getMatchLogById);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.route('/')
-  .get(getHotels)
-  .post(validate(createHotelSchema), createHotel);
+  .get(protect, getHotels)
+  .post(protect, authorize('Hotel Owner', 'Admin'), validate(createHotelSchema), createHotel);
 
 /**
  * @swagger
@@ -137,6 +142,8 @@ router.route('/')
  *   post:
  *     summary: Confirm a hotel match
  *     tags: [Hotels]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -162,7 +169,7 @@ router.route('/')
  *               $ref: '#/components/schemas/HotelResponse'
  */
 router.route('/:id/confirm')
-  .post(validate(confirmMatchSchema), confirmMatch);
+  .post(protect, authorize('Hotel Owner', 'Admin'), validate(confirmMatchSchema), confirmMatch);
 
 /**
  * @swagger
@@ -170,6 +177,8 @@ router.route('/:id/confirm')
  *   get:
  *     summary: Get a hotel by ID
  *     tags: [Hotels]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -189,6 +198,8 @@ router.route('/:id/confirm')
  *   put:
  *     summary: Update a hotel
  *     tags: [Hotels]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -212,6 +223,8 @@ router.route('/:id/confirm')
  *   delete:
  *     summary: Delete a hotel
  *     tags: [Hotels]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -224,8 +237,8 @@ router.route('/:id/confirm')
  *         description: Hotel deleted successfully
  */
 router.route('/:id')
-  .get(getHotel)
-  .put(validate(updateHotelSchema), updateHotel)
-  .delete(deleteHotel);
+  .get(protect, getHotel)
+  .put(protect, authorize('Hotel Owner', 'Admin'), validate(updateHotelSchema), updateHotel)
+  .delete(protect, authorize('Admin', 'Hotel Owner'), deleteHotel);
 
 export default router;

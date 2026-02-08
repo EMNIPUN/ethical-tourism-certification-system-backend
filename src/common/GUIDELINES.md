@@ -12,6 +12,10 @@ This directory contains shared resources that must be used across all feature mo
 *   **`errorMiddleware`**: Global error handler. Catches all errors and returns a standardized JSON response `{ success: false, error: "Message" }`.
 *   **`validate(schema)`**: Generic validation middleware. Put this in your routes before the controller.
     *   **Usage**: `router.post('/', validate(createSchema), createController);`
+*   **`protect`**: Middleware to protect routes Authentication. Verifies JWT token from `Authorization` header.
+    *   **Usage**: `router.get('/protected', protect, controller);`
+*   **`authorize(...roles)`**: Middleware to restrict access to specific roles.
+    *   **Usage**: `router.get('/admin', protect, authorize('Admin'), adminController);`
 
 ### 3. Configuration (`src/common/config/`)
 *   **`db.js`**: Database connection logic.

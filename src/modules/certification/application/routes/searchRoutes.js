@@ -1,5 +1,6 @@
 import express from 'express';
 import { searchHotels } from '../controllers/searchController.js';
+import { protect, authorize } from '../../../../common/middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -24,6 +25,8 @@ const router = express.Router();
  *           type: string
  *         required: true
  *         description: Search query (e.g. Hotel Name, City)
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Search results
@@ -54,6 +57,6 @@ const router = express.Router();
  *                       thumbnail:
  *                         type: string
  */
-router.get('/', searchHotels);
+router.get('/', protect, authorize('Admin', 'Hotel Owner'), searchHotels);
 
 export default router;

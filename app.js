@@ -9,6 +9,7 @@ import searchModuleRoutes from './src/modules/search/routes/index.js';
 import certificationAppRoutes from './src/modules/certification/application/routes/index.js';
 import certificationLifecycleRoutes from './src/modules/certification/lifecycle/routes/index.js';
 import auditModuleRoutes from './src/modules/audit/routes/index.js';
+import authRoutes from './public/auth/routes/authRoutes.js';
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use('/hotels-search', searchModuleRoutes);
 app.use('/hotels', certificationAppRoutes);
 app.use('/certification', certificationLifecycleRoutes);
 app.use('/audits', auditModuleRoutes);
+app.use('/auth', authRoutes);
 
 // Health check for v1
 app.get('/', (req, res) => {
