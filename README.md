@@ -84,11 +84,15 @@ src/
     PORT=5000
     MONGO_URI=your_mongodb_connection_string
     SERPAPI_KEY=your_serpapi_key
+    NODE_ENV=development
+    JWT_SECRET=your_super_secret_jwt_key
+    JWT_EXPIRE=30d
+    JWT_COOKIE_EXPIRE=30
     ```
 
 3.  **Run the Server**:
     ```bash
-    npm start
+    npm run dev
     ```
     The server will start on `http://localhost:5000`.
 
