@@ -28,7 +28,7 @@ app.use('/auth', authRoutes);
 
 // Health check for v1
 app.get('/', (req, res) => {
-    res.send('API v1 is running');
+  res.send('API v1 is running');
 });
 
 // Error Handling Middleware (must be last)
