@@ -1,35 +1,38 @@
-import express from 'express';
+import express from "express";
 import {
-  createHotel,
-  getHotels,
-  getHotel,
-  updateHotel,
-  deleteHotel,
-  confirmMatch,
-} from '../controllers/hotelController.js';
-import { validate } from '../../../../common/middleware/validateMiddleware.js';
-import { protect, authorize } from '../../../../common/middleware/authMiddleware.js';
+   createHotel,
+   getHotels,
+   getHotel,
+   updateHotel,
+   deleteHotel,
+   confirmMatch,
+} from "../controllers/hotelController.js";
+import { validate } from "../../../../common/middleware/validateMiddleware.js";
 import {
-  createHotelSchema,
-  updateHotelSchema,
-  confirmMatchSchema
-} from '../validations/hotelValidation.js';
+   protect,
+   authorize,
+} from "../../../../common/middleware/authMiddleware.js";
 import {
-  getMatchingStats,
-  getMatchLogById
-} from '../controllers/matchAnalyticsController.js';
+   createHotelSchema,
+   updateHotelSchema,
+   confirmMatchSchema,
+} from "../validations/hotelValidation.js";
+import {
+   getMatchingStats,
+   getMatchLogById,
+} from "../controllers/matchAnalyticsController.js";
 
 const router = express.Router();
 
 // Analytics routes (Must be before /:id routes)
-router.get('/analytics', protect, authorize('Admin'), getMatchingStats);
-router.get('/analytics/:id', protect, authorize('Admin'), getMatchLogById);
+router.get("/analytics", protect, authorize("Admin"), getMatchingStats);
+router.get("/analytics/:id", protect, authorize("Admin"), getMatchLogById);
 
 /**
  * @swagger
  * tags:
- *   name: Hotels
- *   description: The hotels managing API including interactive search and confirmation
+ *   name: Certification Application Management
+ *   description: API endpoints for managing hotel certificates, including creation, updates, and interactive search/confirmation process.
  */
 
 /**
@@ -37,7 +40,7 @@ router.get('/analytics/:id', protect, authorize('Admin'), getMatchLogById);
  * /hotels:
  *   get:
  *     summary: Retrieve a list of hotels
- *     tags: [Hotels]
+ *     tags: [Certification Application Management]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -49,7 +52,7 @@ router.get('/analytics/:id', protect, authorize('Admin'), getMatchLogById);
  *               $ref: '#/components/schemas/HotelListResponse'
  *   post:
  *     summary: Create a new hotel
- *     tags: [Hotels]
+ *     tags: [Certification Application Management]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -132,16 +135,22 @@ router.get('/analytics/:id', protect, authorize('Admin'), getMatchLogById);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.route('/')
-  .get(protect, getHotels)
-  .post(protect, authorize('Hotel Owner', 'Admin'), validate(createHotelSchema), createHotel);
+router
+   .route("/")
+   .get(protect, getHotels)
+   .post(
+      protect,
+      authorize("Hotel Owner", "Admin"),
+      validate(createHotelSchema),
+      createHotel,
+   );
 
 /**
  * @swagger
  * /hotels/{id}/confirm:
  *   post:
  *     summary: Confirm a hotel match
- *     tags: [Hotels]
+ *     tags: [Certification Application Management]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -168,15 +177,21 @@ router.route('/')
  *             schema:
  *               $ref: '#/components/schemas/HotelResponse'
  */
-router.route('/:id/confirm')
-  .post(protect, authorize('Hotel Owner', 'Admin'), validate(confirmMatchSchema), confirmMatch);
+router
+   .route("/:id/confirm")
+   .post(
+      protect,
+      authorize("Hotel Owner", "Admin"),
+      validate(confirmMatchSchema),
+      confirmMatch,
+   );
 
 /**
  * @swagger
  * /hotels/{id}:
  *   get:
  *     summary: Get a hotel by ID
- *     tags: [Hotels]
+ *     tags: [Certification Application Management]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -197,7 +212,7 @@ router.route('/:id/confirm')
  *         description: Hotel not found
  *   put:
  *     summary: Update a hotel
- *     tags: [Hotels]
+ *     tags: [Certification Application Management]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -222,7 +237,7 @@ router.route('/:id/confirm')
  *               $ref: '#/components/schemas/HotelResponse'
  *   delete:
  *     summary: Delete a hotel
- *     tags: [Hotels]
+ *     tags: [Certification Application Management]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -236,9 +251,15 @@ router.route('/:id/confirm')
  *       200:
  *         description: Hotel deleted successfully
  */
-router.route('/:id')
-  .get(protect, getHotel)
-  .put(protect, authorize('Hotel Owner', 'Admin'), validate(updateHotelSchema), updateHotel)
-  .delete(protect, authorize('Admin', 'Hotel Owner'), deleteHotel);
+router
+   .route("/:id")
+   .get(protect, getHotel)
+   .put(
+      protect,
+      authorize("Hotel Owner", "Admin"),
+      validate(updateHotelSchema),
+      updateHotel,
+   )
+   .delete(protect, authorize("Admin", "Hotel Owner"), deleteHotel);
 
 export default router;

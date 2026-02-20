@@ -1,8 +1,15 @@
-import express from 'express';
-import { register, login, getMe } from '../controllers/authController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import express from "express";
+import { register, login, getMe } from "../controllers/authController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+/**
+ * @swagger
+ * tags:
+ *   name: Authentication
+ *   description: API endpoints for user authentication, including registration, login, and retrieving current user information.
+ */
 
 /**
  * @swagger
@@ -27,11 +34,11 @@ const router = express.Router();
  *         role:
  *           type: string
  *           enum: [Admin, Hotel Owner, Auditor, Tourist]
- * 
+ *
  * /auth/register:
  *   post:
  *     summary: Register a new user
- *     tags: [Auth]
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -43,11 +50,11 @@ const router = express.Router();
  *         description: User registered successfully
  *       400:
  *         description: Bad request
- * 
+ *
  * /auth/login:
  *   post:
  *     summary: Login user
- *     tags: [Auth]
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -67,11 +74,11 @@ const router = express.Router();
  *         description: Login successful
  *       401:
  *         description: Invalid credentials
- * 
+ *
  * /auth/me:
  *   get:
  *     summary: Get current logged in user
- *     tags: [Auth]
+ *     tags: [Authentication]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -81,8 +88,8 @@ const router = express.Router();
  *         description: Not authorized
  */
 
-router.post('/register', register);
-router.post('/login', login);
-router.get('/me', protect, getMe);
+router.post("/register", register);
+router.post("/login", login);
+router.get("/me", protect, getMe);
 
 export default router;

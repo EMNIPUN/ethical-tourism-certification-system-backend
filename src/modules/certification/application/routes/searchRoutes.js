@@ -1,15 +1,11 @@
-import express from 'express';
-import { searchHotels } from '../controllers/searchController.js';
-import { protect, authorize } from '../../../../common/middleware/authMiddleware.js';
+import express from "express";
+import { searchHotels } from "../controllers/searchController.js";
+import {
+   protect,
+   authorize,
+} from "../../../../common/middleware/authMiddleware.js";
 
 const router = express.Router();
-
-/**
- * @swagger
- * tags:
- *   name: Search
- *   description: Search hotels using Google Hotels API
- */
 
 // Search route
 /**
@@ -17,7 +13,7 @@ const router = express.Router();
  * /hotels/search:
  *   get:
  *     summary: Search for hotels via Google Hotels
- *     tags: [Search]
+ *     tags: [Certification Application Management]
  *     parameters:
  *       - in: query
  *         name: q
@@ -57,6 +53,6 @@ const router = express.Router();
  *                       thumbnail:
  *                         type: string
  */
-router.get('/', protect, authorize('Admin', 'Hotel Owner'), searchHotels);
+router.get("/", protect, authorize("Admin", "Hotel Owner"), searchHotels);
 
 export default router;
