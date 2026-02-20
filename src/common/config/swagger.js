@@ -29,7 +29,11 @@ const options = {
             },
         ],
     },
-    apis: ['./src/modules/**/*.js', './src/common/swagger/*.js'], // Files containing annotations
+    apis: [
+        './src/modules/**/*.js',
+        './src/common/routes/**/*.js',
+        './src/common/swagger/*.js',
+    ], // Files containing annotations
 };
 
 const swaggerSpec = swaggerJsdoc(options);

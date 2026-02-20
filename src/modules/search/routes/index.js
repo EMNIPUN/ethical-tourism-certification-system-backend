@@ -1,7 +1,8 @@
 import express from 'express';
+import hotelContractRoutes from './hotelContractRoutes.js';
 
 const router = express.Router();
 
-// Routes moved to certification module
+router.use('/', hotelContractRoutes);
 
 export default router;
