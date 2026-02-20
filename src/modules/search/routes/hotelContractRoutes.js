@@ -1,47 +1,20 @@
-import express from 'express';
+import express from "express";
 import {
-	getHotelContactDetails,
-	getHotelContactDetailById
-} from '../controller/hotelContactController.js';
-import { protect, authorize } from '../../../common/middleware/authMiddleware.js';
+   getHotelContactDetails,
+   getHotelContactDetailById,
+} from "../controller/hotelContactController.js";
+import {
+   protect,
+   authorize,
+} from "../../../common/middleware/authMiddleware.js";
 
 const router = express.Router();
 
 /**
  * @swagger
  * tags:
- *   name: Hotel Contacts
- *   description: API for viewing hotel contact details
- */
-
-/**
- * @swagger
- * components:
- *   schemas:
- *     HotelContactInfo:
- *       type: object
- *       properties:
- *         hotelId:
- *           type: string
- *         hotelName:
- *           type: string
- *         ownerName:
- *           type: string
- *         phone:
- *           type: string
- *         email:
- *           type: string
- *         website:
- *           type: string
- *         address:
- *           type: string
- *         gps:
- *           type: object
- *           properties:
- *             latitude:
- *               type: number
- *             longitude:
- *               type: number
+ *   name: Public Certification Verification & Discovery
+ *   description: Smart hotel search and review of hotel contact details for certification verification and discovery.
  */
 
 /**
@@ -49,7 +22,7 @@ const router = express.Router();
  * /hotels-search/contacts:
  *   get:
  *     summary: Get all hotel contact details
- *     tags: [Hotel Contacts]
+ *     tags: [Public Certification Verification & Discovery]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -71,14 +44,19 @@ const router = express.Router();
  *       401:
  *         description: Not authorized
  */
-router.get('/contacts', protect, authorize('Admin', 'Hotel Owner', 'Auditor', 'Tourist'), getHotelContactDetails);
+router.get(
+   "/contacts",
+   protect,
+   authorize("Admin", "Hotel Owner", "Auditor", "Tourist"),
+   getHotelContactDetails,
+);
 
 /**
  * @swagger
  * /hotels-search/contacts/{id}:
  *   get:
  *     summary: Get hotel contact details by ID
- *     tags: [Hotel Contacts]
+ *     tags: [Public Certification Verification & Discovery]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -105,6 +83,11 @@ router.get('/contacts', protect, authorize('Admin', 'Hotel Owner', 'Auditor', 'T
  *       404:
  *         description: Contact details not found
  */
-router.get('/contacts/:id', protect, authorize('Admin', 'Hotel Owner', 'Auditor', 'Tourist'), getHotelContactDetailById);
+router.get(
+   "/contacts/:id",
+   protect,
+   authorize("Admin", "Hotel Owner", "Auditor", "Tourist"),
+   getHotelContactDetailById,
+);
 
 export default router;
