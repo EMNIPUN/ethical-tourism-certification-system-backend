@@ -6,15 +6,11 @@ import {
    updateHotel,
    deleteHotel,
 } from "../controllers/hotelController.js";
-import { validate } from "../../../../common/middleware/validateMiddleware.js";
 import {
    protect,
    authorize,
 } from "../../../../common/middleware/authMiddleware.js";
-import {
-   createHotelSchema,
-   updateHotelSchema,
-} from "../validations/hotelValidation.js";
+import { cpUpload } from "../middleware/fileUploadMiddleware.js";
 
 const router = express.Router();
 
@@ -48,9 +44,31 @@ const router = express.Router();
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/HotelRequest'
+ *             type: object
+ *             properties:
+ *               hotelData:
+ *                 type: string
+ *                 description: JSON string containing all hotel data matching the HotelRequest schema.
+ *               legalDocuments:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Upload legal compliance documents (Max 15MB each).
+ *               salarySlips:
+ *                 type: string
+ *                 format: binary
+ *                 description: Upload salary slips evidence (Max 15MB).
+ *               staffHandbook:
+ *                 type: string
+ *                 format: binary
+ *                 description: Upload staff handbook evidence (Max 15MB).
+ *               hrPolicy:
+ *                 type: string
+ *                 format: binary
+ *                 description: Upload HR policy evidence (Max 15MB).
  *     responses:
  *       201:
  *         description: Hotel created successfully
@@ -113,7 +131,7 @@ const router = express.Router();
  *                   type: string
  *                   example: "Hotel created. Please confirm the correct Google Maps listing."
  *       400:
- *         description: Validation error
+ *         description: Validation error or file too large (Max 15MB)
  *         content:
  *           application/json:
  *             schema:
@@ -131,7 +149,7 @@ router
    .post(
       protect,
       authorize("Hotel Owner", "Admin"),
-      validate(createHotelSchema),
+      cpUpload,
       createHotel,
    );
 
@@ -174,9 +192,27 @@ router
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/HotelRequest'
+ *             type: object
+ *             properties:
+ *               hotelData:
+ *                 type: string
+ *                 description: JSON string containing all hotel data to update.
+ *               legalDocuments:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *               salarySlips:
+ *                 type: string
+ *                 format: binary
+ *               staffHandbook:
+ *                 type: string
+ *                 format: binary
+ *               hrPolicy:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       200:
  *         description: Hotel updated successfully
@@ -206,7 +242,7 @@ router
    .put(
       protect,
       authorize("Hotel Owner", "Admin"),
-      validate(updateHotelSchema),
+      cpUpload,
       updateHotel,
    )
    .delete(protect, authorize("Admin", "Hotel Owner"), deleteHotel);

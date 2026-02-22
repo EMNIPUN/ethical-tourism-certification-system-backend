@@ -33,7 +33,10 @@ const HotelSchema = new mongoose.Schema({
         issueDate: { type: Date },
         expiryDate: { type: Date },
         issuingAuthority: { type: String },
-        fileUrl: { type: String }
+        file: {
+            data: Buffer,
+            contentType: String
+        }
     }],
 
     // 3. Employee & Labor Practices
@@ -54,9 +57,9 @@ const HotelSchema = new mongoose.Schema({
             unionWorkerCommittee: { type: Boolean, default: false }
         },
         evidence: {
-            salarySlipsUrl: { type: String },
-            staffHandbookUrl: { type: String },
-            hrPolicyUrl: { type: String }
+            salarySlips: { data: Buffer, contentType: String },
+            staffHandbook: { data: Buffer, contentType: String },
+            hrPolicy: { data: Buffer, contentType: String }
         }
     },
 

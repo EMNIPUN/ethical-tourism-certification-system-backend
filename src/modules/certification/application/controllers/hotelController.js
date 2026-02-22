@@ -18,7 +18,54 @@ import asyncHandler from '../../../../common/utils/asyncHandler.js';
  * @returns {Promise<void>}
  */
 export const createHotel = asyncHandler(async (req, res) => {
-    const hotel = await hotelService.createHotel(req.body);
+    // 1. Parse JSON data from form-data
+    let hotelData;
+    try {
+        hotelData = req.body.hotelData ? JSON.parse(req.body.hotelData) : req.body;
+    } catch (err) {
+        res.status(400);
+        throw new Error("Invalid JSON format in hotelData field.");
+    }
+
+    // 2. Process Files
+    if (req.files) {
+        // Legal Documents
+        if (req.files.legalDocuments && hotelData.legalDocuments) {
+            req.files.legalDocuments.forEach((file, index) => {
+                if (hotelData.legalDocuments[index]) {
+                    hotelData.legalDocuments[index].file = {
+                        data: file.buffer,
+                        contentType: file.mimetype
+                    };
+                }
+            });
+        }
+
+        // Employee Evidence
+        if (!hotelData.employeePractices) hotelData.employeePractices = {};
+        if (!hotelData.employeePractices.evidence) hotelData.employeePractices.evidence = {};
+
+        if (req.files.salarySlips?.[0]) {
+            hotelData.employeePractices.evidence.salarySlips = {
+                data: req.files.salarySlips[0].buffer,
+                contentType: req.files.salarySlips[0].mimetype
+            };
+        }
+        if (req.files.staffHandbook?.[0]) {
+            hotelData.employeePractices.evidence.staffHandbook = {
+                data: req.files.staffHandbook[0].buffer,
+                contentType: req.files.staffHandbook[0].mimetype
+            };
+        }
+        if (req.files.hrPolicy?.[0]) {
+            hotelData.employeePractices.evidence.hrPolicy = {
+                data: req.files.hrPolicy[0].buffer,
+                contentType: req.files.hrPolicy[0].mimetype
+            };
+        }
+    }
+
+    const hotel = await hotelService.createHotel(hotelData);
 
     res.status(201).json({
         success: true,
@@ -61,7 +108,54 @@ export const getHotel = asyncHandler(async (req, res) => {
  * Handles PUT requests to `/api/hotels/:id`.
  */
 export const updateHotel = asyncHandler(async (req, res) => {
-    const hotel = await hotelService.updateHotelById(req.params.id, req.body);
+    // 1. Parse JSON data from form-data
+    let hotelData;
+    try {
+        hotelData = req.body.hotelData ? JSON.parse(req.body.hotelData) : req.body;
+    } catch (err) {
+        res.status(400);
+        throw new Error("Invalid JSON format in hotelData field.");
+    }
+
+    // 2. Process Files (similar to create)
+    if (req.files) {
+        if (req.files.legalDocuments && hotelData.legalDocuments) {
+            req.files.legalDocuments.forEach((file, index) => {
+                if (hotelData.legalDocuments[index]) {
+                    hotelData.legalDocuments[index].file = {
+                        data: file.buffer,
+                        contentType: file.mimetype
+                    };
+                }
+            });
+        }
+
+        if (req.files.salarySlips || req.files.staffHandbook || req.files.hrPolicy) {
+            if (!hotelData.employeePractices) hotelData.employeePractices = {};
+            if (!hotelData.employeePractices.evidence) hotelData.employeePractices.evidence = {};
+
+            if (req.files.salarySlips?.[0]) {
+                hotelData.employeePractices.evidence.salarySlips = {
+                    data: req.files.salarySlips[0].buffer,
+                    contentType: req.files.salarySlips[0].mimetype
+                };
+            }
+            if (req.files.staffHandbook?.[0]) {
+                hotelData.employeePractices.evidence.staffHandbook = {
+                    data: req.files.staffHandbook[0].buffer,
+                    contentType: req.files.staffHandbook[0].mimetype
+                };
+            }
+            if (req.files.hrPolicy?.[0]) {
+                hotelData.employeePractices.evidence.hrPolicy = {
+                    data: req.files.hrPolicy[0].buffer,
+                    contentType: req.files.hrPolicy[0].mimetype
+                };
+            }
+        }
+    }
+
+    const hotel = await hotelService.updateHotelById(req.params.id, hotelData);
     if (!hotel) {
         res.status(404);
         throw new Error('Hotel not found');
