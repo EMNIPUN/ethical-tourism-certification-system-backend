@@ -1,4 +1,4 @@
-import Hotel from '../../../common/models/Hotel.js';
+import Hotel from '../../certification/application/models/Hotel.js';
 
 const toHotelContactResponse = (hotel) => ({
     hotelId: hotel._id,
