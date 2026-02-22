@@ -1,9 +1,9 @@
-import express from 'express';
+import express from "express";
+import lifecycleRoutes from "./lifecycleRoutes.js";
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
-    res.send('Certification Lifecycle Module - No routes defined yet.');
-});
+// Mount certificate lifecycle routes
+router.use("/", lifecycleRoutes);
 
 export default router;
