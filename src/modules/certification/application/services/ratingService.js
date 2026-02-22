@@ -1,6 +1,6 @@
 import { getJson } from "serpapi";
 import fs from 'fs';
-import Hotel from '../../../../common/models/Hotel.js';
+import Hotel from '../models/Hotel.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
