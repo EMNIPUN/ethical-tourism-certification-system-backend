@@ -2,6 +2,20 @@ import * as lifecycleService from "../services/lifecycleService.js";
 import asyncHandler from "../../../../common/utils/asyncHandler.js";
 
 /**
+ * Get all hotels eligible for certification (both scores passed).
+ * GET /certification/certificates/eligible
+ */
+export const getEligibleHotels = asyncHandler(async (req, res) => {
+   const hotels = await lifecycleService.getEligibleHotelsForCertification();
+
+   res.status(200).json({
+      success: true,
+      count: hotels.length,
+      data: hotels,
+   });
+});
+
+/**
  * lifecycleController.js
  *
  * Thin controller layer — delegates all business logic to lifecycleService.js.

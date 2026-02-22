@@ -4,7 +4,8 @@ import Certificate, {
    CERTIFICATE_LEVEL,
    TRUST_SCORE,
 } from "../../../../common/models/certificate.model.js";
-import Hotel from "../../../../common/models/Hotel.js";
+import Hotel from "../../application/models/Hotel.js";
+import HotelRequest from "../../../../common/models/HotelRequest.js";
 
 /**
  * lifecycleService.js
@@ -322,4 +323,43 @@ export const revokeCertificate = async (certificateId, reason) => {
 
    await certificate.save();
    return certificate;
+};
+
+/**
+ * Get all hotels eligible for certification.
+ * Eligible = HotelRequest records where both hotelScore and auditScore are 'passed'.
+ * Excludes hotels that already hold an ACTIVE certificate.
+ *
+ * @returns {Promise<Array>} Array of { hotelRequest, hotel, alreadyCertified } objects.
+ */
+export const getEligibleHotelsForCertification = async () => {
+   // Find all hotel requests where both scores are passed
+   const eligibleRequests = await HotelRequest.find({
+      "hotelScore.status": "passed",
+      "auditScore.status": "passed",
+   }).populate("hotelId");
+
+   if (!eligibleRequests.length) return [];
+
+   // Check which hotels already have an active certificate
+   const hotelIds = eligibleRequests.map((r) => r.hotelId?._id).filter(Boolean);
+   const activeCerts = await Certificate.find({
+      hotelId: { $in: hotelIds },
+      status: CERTIFICATE_STATUS.ACTIVE,
+   }).select("hotelId");
+
+   const certifiedHotelIds = new Set(
+      activeCerts.map((c) => c.hotelId.toString()),
+   );
+
+   return eligibleRequests.map((request) => ({
+      hotelRequestId: request._id,
+      hotelId: request.hotelId?._id,
+      hotel: request.hotelId,
+      hotelScore: request.hotelScore,
+      auditScore: request.auditScore,
+      alreadyCertified: certifiedHotelIds.has(request.hotelId?._id?.toString()),
+      createdAt: request.createdAt,
+      updatedAt: request.updatedAt,
+   }));
 };

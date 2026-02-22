@@ -3,6 +3,7 @@ import {
    issueCertificate,
    getCertificate,
    getHotelsWithCertificates,
+   getEligibleHotels,
    updateTrustScore,
    renewCertificate,
    revokeCertificate,
@@ -222,6 +223,80 @@ router.get(
    protect,
    authorize("Admin", "Auditor"),
    getHotelsWithCertificates,
+);
+
+/**
+ * @swagger
+ * /certification/certificates/eligible:
+ *   get:
+ *     summary: Get hotels eligible for certification
+ *     description: >
+ *       Returns all hotels whose HotelRequest record has both `hotelScore` and
+ *       `auditScore` set to **passed**. Each result includes full hotel details,
+ *       the scores, and an `alreadyCertified` flag indicating whether the hotel
+ *       already holds an ACTIVE certificate. Accessible by Admin and Auditor.
+ *     tags: [Certificate Lifecycle]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of hotels eligible for certificate issuance
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: number
+ *                   example: 3
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       hotelRequestId:
+ *                         type: string
+ *                         example: "665f1a2b3c4d5e6f7a8b9c0f"
+ *                       hotelId:
+ *                         type: string
+ *                         example: "665f1a2b3c4d5e6f7a8b9c0e"
+ *                       hotel:
+ *                         $ref: '#/components/schemas/Certificate'
+ *                       hotelScore:
+ *                         type: object
+ *                         properties:
+ *                           status:
+ *                             type: string
+ *                             example: "passed"
+ *                       auditScore:
+ *                         type: object
+ *                         properties:
+ *                           status:
+ *                             type: string
+ *                             example: "passed"
+ *                       alreadyCertified:
+ *                         type: boolean
+ *                         description: true if an ACTIVE certificate already exists
+ *                         example: false
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *       401:
+ *         description: Not authorized
+ *       403:
+ *         description: Insufficient role
+ */
+router.get(
+   "/certificates/eligible",
+   protect,
+   authorize("Admin", "Auditor"),
+   getEligibleHotels,
 );
 
 /**
