@@ -5,6 +5,7 @@ import {
    updateTrustScore,
    renewCertificate,
    revokeCertificate,
+   inactivateCertificate,
 } from "../controllers/lifecycleController.js";
 import {
    protect,
@@ -16,6 +17,7 @@ import {
    updateTrustScoreSchema,
    renewCertificateSchema,
    revokeCertificateSchema,
+   inactivateCertificateSchema,
 } from "../validations/lifecycleValidation.js";
 
 const router = express.Router();
@@ -56,7 +58,7 @@ const router = express.Router();
  *           description: Date the certificate expires
  *         status:
  *           type: string
- *           enum: [ACTIVE, EXPIRED, REVOKED]
+ *           enum: [ACTIVE, EXPIRED, REVOKED, INACTIVE]
  *           description: Current certificate status
  *           example: "ACTIVE"
  *         trustScore:
@@ -382,6 +384,68 @@ router.put(
    authorize("Admin"),
    validate(revokeCertificateSchema),
    revokeCertificate,
+);
+
+/**
+ * @swagger
+ * /certification/certificates/{id}:
+ *   delete:
+ *     summary: Inactivate (soft-delete) a certificate
+ *     description: >
+ *       Marks a certificate as INACTIVE — a soft-delete operation representing
+ *       the CRUD delete action. The certificate record is retained in the database
+ *       but is permanently deactivated. Cannot be applied to an already inactive certificate.
+ *       Admin only.
+ *     tags: [Certificate Lifecycle]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The certificate document ID
+ *         example: "665f1a2b3c4d5e6f7a8b9c0d"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Reason for inactivating the certificate
+ *                 example: "Hotel permanently closed"
+ *     responses:
+ *       200:
+ *         description: Certificate inactivated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CertificateResponse'
+ *       400:
+ *         description: Certificate is already inactive
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CertificateErrorResponse'
+ *       401:
+ *         description: Not authorized
+ *       403:
+ *         description: Insufficient role
+ *       404:
+ *         description: Certificate not found
+ */
+router.delete(
+   "/certificates/:id",
+   protect,
+   authorize("Admin"),
+   validate(inactivateCertificateSchema),
+   inactivateCertificate,
 );
 
 export default router;

@@ -3,7 +3,7 @@ import Certificate, {
    CERTIFICATE_STATUS,
    CERTIFICATE_LEVEL,
    TRUST_SCORE,
-} from "../certificate.model.js";
+} from "../../../../common/models/certificate.model.js";
 import Hotel from "../../../../common/models/Hotel.js";
 
 /**
@@ -219,6 +219,40 @@ export const renewCertificate = async (
       certificate.trustScore + TRUST_SCORE.RENEWAL_BONUS,
    );
    certificate.level = calculateLevel(certificate.trustScore);
+
+   await certificate.save();
+   return certificate;
+};
+
+/**
+ * Inactivate (soft-delete) a certificate.
+ *
+ * @param {string} certificateId - The certificate's ObjectId.
+ * @param {string} reason - Reason for inactivation.
+ * @returns {Promise<Object>} The inactivated certificate document.
+ */
+export const inactivateCertificate = async (certificateId, reason) => {
+   if (!mongoose.Types.ObjectId.isValid(certificateId)) {
+      const error = new Error("Invalid certificate ID format");
+      error.statusCode = 400;
+      throw error;
+   }
+
+   const certificate = await Certificate.findById(certificateId);
+   if (!certificate) {
+      const error = new Error("Certificate not found");
+      error.statusCode = 404;
+      throw error;
+   }
+
+   if (certificate.status === CERTIFICATE_STATUS.INACTIVE) {
+      const error = new Error("Certificate is already inactive");
+      error.statusCode = 400;
+      throw error;
+   }
+
+   certificate.status = CERTIFICATE_STATUS.INACTIVE;
+   certificate.revokedReason = reason;
 
    await certificate.save();
    return certificate;

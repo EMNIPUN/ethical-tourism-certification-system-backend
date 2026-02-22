@@ -5,6 +5,7 @@ export const CERTIFICATE_STATUS = {
    ACTIVE: "ACTIVE",
    EXPIRED: "EXPIRED",
    REVOKED: "REVOKED",
+   INACTIVE: "INACTIVE",
 };
 
 export const CERTIFICATE_LEVEL = {

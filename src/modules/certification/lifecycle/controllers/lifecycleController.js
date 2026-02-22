@@ -68,6 +68,21 @@ export const renewCertificate = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Inactivate (soft-delete) a certificate.
+ * DELETE /certification/certificates/:id
+ */
+export const inactivateCertificate = asyncHandler(async (req, res) => {
+   const { reason } = req.body;
+
+   const certificate = await lifecycleService.inactivateCertificate(
+      req.params.id,
+      reason,
+   );
+
+   res.status(200).json({ success: true, data: certificate });
+});
+
+/**
  * Revoke a certificate.
  * PUT /certification/certificates/:id/revoke
  */

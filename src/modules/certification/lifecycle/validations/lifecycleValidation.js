@@ -56,3 +56,11 @@ export const revokeCertificateSchema = Joi.object({
       "any.required": "reason is required and must be a string",
    }),
 });
+
+export const inactivateCertificateSchema = Joi.object({
+   reason: Joi.string().required().min(1).max(1000).messages({
+      "string.empty": "reason is required",
+      "string.min": "reason is required",
+      "any.required": "reason is required and must be a string",
+   }),
+});
