@@ -1,7 +1,4 @@
 import * as hotelService from '../services/hotelService.js';
-import MatchLog from "../models/MatchLog.js";
-import * as ratingService from '../services/ratingService.js';
-import * as verificationService from '../services/verificationService.js';
 import asyncHandler from '../../../../common/utils/asyncHandler.js';
 
 /**
@@ -23,56 +20,10 @@ import asyncHandler from '../../../../common/utils/asyncHandler.js';
 export const createHotel = asyncHandler(async (req, res) => {
     const hotel = await hotelService.createHotel(req.body);
 
-    // Use enhanced matching logic
-    const { match, candidates } = await ratingService.findBestMatch(hotel);
-
-    // Create MatchLog entry
-    const matchLog = new MatchLog({
-        hotelId: hotel._id,
-        hotelName: hotel.businessInfo.name,
-        searchQuery: `${hotel.businessInfo.name} ${hotel.businessInfo.contact.address}`,
-        matchFound: !!match || candidates.length > 0,
-        autoMatched: false, // Always false now as we require manual confirmation
-        matchScore: match ? match.matchScore : (candidates.length > 0 ? candidates[0].matchScore : 0),
-        candidatesCount: candidates.length,
-        candidates: candidates.map(c => ({
-            name: c.name,
-            address: c.address,
-            score: c.matchScore,
-            token: c.token,
-            matchLogs: c.matchLogs // Debugging
-        }))
-    });
-    await matchLog.save();
-
-    // Always return 202 Created (Accepted) with candidates for manual confirmation
-    // We do NOT save the match automatically anymore.
-    res.status(202).json({
+    res.status(201).json({
         success: true,
-        data: {
-            _id: hotel._id,
-            name: hotel.businessInfo.name,
-            address: hotel.businessInfo.contact.address
-        },
-        // We provide the "best match" as the first suggestion if available
-        suggestedMatch: match ? {
-            name: match.name,
-            address: match.address || match.vicinity,
-            rating: match.overall_rating,
-            token: match.property_token,
-            thumbnail: match.thumbnail,
-            matchScore: match.matchScore,
-            matchLogs: match.matchLogs
-        } : null,
-        candidates: candidates.map(c => ({
-            name: c.name,
-            address: c.address,
-            matchScore: c.matchScore,
-            matchLogs: c.matchLogs,
-            token: c.token, // Ensure frontend has token to confirm
-            thumbnail: c.thumbnail
-        })),
-        message: "Hotel created. Please confirm the correct Google Maps listing."
+        data: hotel,
+        message: "Hotel created successfully."
     });
 });
 
@@ -134,11 +85,3 @@ export const deleteHotel = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, data: {} });
 });
 
-/**
- * Confirms a hotel match and updates scores.
- */
-export const confirmMatch = asyncHandler(async (req, res) => {
-    const { property_token } = req.body;
-    const hotel = await verificationService.confirmHotelMatch(req.params.id, property_token);
-    res.status(200).json({ success: true, data: hotel });
-});

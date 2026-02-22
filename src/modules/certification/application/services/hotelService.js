@@ -1,5 +1,5 @@
 import Hotel from '../models/Hotel.js';
-import { calculateDataCompletion, calculateTotalScore } from './scoringService.js';
+
 
 /**
  * hotelService.js
@@ -35,12 +35,9 @@ export const createHotel = async (data) => {
         throw error;
     }
 
-    // Initial scoring calculation (Data Completion only)
-    const dataScore = calculateDataCompletion(data);
-
     // Ensure scoring object exists
     data.scoring = {
-        dataCompletionScore: dataScore,
+        dataCompletionScore: 0,
         googleRating: 0,
         googleReviewScore: 0,
         auditorScore: 0,
@@ -48,10 +45,6 @@ export const createHotel = async (data) => {
         certificationLevel: 'None',
         ...data.scoring // Merge any provided scoring
     };
-
-    // Calculate initial total score (will be low without Google rating)
-    const calculatedScoring = calculateTotalScore({ scoring: data.scoring });
-    data.scoring = calculatedScoring;
 
     const hotel = await Hotel.create(data);
     return hotel;
@@ -128,28 +121,7 @@ export const updateHotelById = async (id, data) => {
     // Update fields
     Object.assign(hotel, data);
 
-    // Fetch Google Rating if needed (e.g. if name/address changed or explicitly requested)
-    if (data.businessInfo) {
-        const { rating, token } = await fetchGoogleRating(hotel);
-        if (rating !== null) {
-            hotel.scoring = hotel.scoring || {};
-            hotel.scoring.googleRating = rating;
-        }
-        if (token) {
-            hotel.businessInfo.serpApiPropertyToken = token;
-        }
-    }
 
-    // Recalculate scoring
-    const hotelObj = hotel.toObject();
-    const dataScore = calculateDataCompletion(hotelObj);
-
-    if (!hotel.scoring) hotel.scoring = {};
-    hotel.scoring.dataCompletionScore = dataScore;
-    hotelObj.scoring = hotel.scoring;
-
-    const calculatedScoring = calculateTotalScore(hotelObj);
-    hotel.scoring = calculatedScoring;
 
     await hotel.save();
     return hotel;

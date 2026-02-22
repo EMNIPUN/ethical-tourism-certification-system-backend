@@ -5,7 +5,6 @@ import {
    getHotel,
    updateHotel,
    deleteHotel,
-   confirmMatch,
 } from "../controllers/hotelController.js";
 import { validate } from "../../../../common/middleware/validateMiddleware.js";
 import {
@@ -15,18 +14,9 @@ import {
 import {
    createHotelSchema,
    updateHotelSchema,
-   confirmMatchSchema,
 } from "../validations/hotelValidation.js";
-import {
-   getMatchingStats,
-   getMatchLogById,
-} from "../controllers/matchAnalyticsController.js";
 
 const router = express.Router();
-
-// Analytics routes (Must be before /:id routes)
-router.get("/analytics", protect, authorize("Admin"), getMatchingStats);
-router.get("/analytics/:id", protect, authorize("Admin"), getMatchLogById);
 
 /**
  * @swagger
@@ -143,47 +133,6 @@ router
       authorize("Hotel Owner", "Admin"),
       validate(createHotelSchema),
       createHotel,
-   );
-
-/**
- * @swagger
- * /hotels/{id}/confirm:
- *   post:
- *     summary: Confirm a hotel match
- *     tags: [Certification Application Management]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: The hotel ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               property_token:
- *                 type: string
- *     responses:
- *       200:
- *         description: Hotel match confirmed
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/HotelResponse'
- */
-router
-   .route("/:id/confirm")
-   .post(
-      protect,
-      authorize("Hotel Owner", "Admin"),
-      validate(confirmMatchSchema),
-      confirmMatch,
    );
 
 /**
