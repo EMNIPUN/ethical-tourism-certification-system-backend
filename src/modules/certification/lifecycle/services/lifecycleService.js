@@ -101,6 +101,37 @@ export const issueCertificate = async (hotelId, validityPeriodInMonths) => {
 };
 
 /**
+ * Get all hotels with their certificate details.
+ * Supports optional filtering by certificate status.
+ *
+ * @param {string|null} status - Optional CERTIFICATE_STATUS filter.
+ * @returns {Promise<Array>} Array of certificate documents with populated hotel data.
+ */
+export const getAllHotelsWithCertificates = async (status = null) => {
+   const filter = {};
+   if (status) {
+      const validStatuses = Object.values(CERTIFICATE_STATUS);
+      if (!validStatuses.includes(status.toUpperCase())) {
+         const error = new Error(
+            `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+         );
+         error.statusCode = 400;
+         throw error;
+      }
+      filter.status = status.toUpperCase();
+   }
+
+   const certificates = await Certificate.find(filter)
+      .populate(
+         "hotelId",
+         "businessInfo.name businessInfo.contact.address businessInfo.contact.email businessInfo.contact.phone businessInfo.businessType businessInfo.contact.website",
+      )
+      .sort({ createdAt: -1 });
+
+   return certificates;
+};
+
+/**
  * Get a certificate by its certificate number (public).
  * Auto-marks as EXPIRED if the expiry date has passed.
  *

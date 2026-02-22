@@ -2,6 +2,7 @@ import express from "express";
 import {
    issueCertificate,
    getCertificate,
+   getHotelsWithCertificates,
    updateTrustScore,
    renewCertificate,
    revokeCertificate,
@@ -164,6 +165,63 @@ router.post(
    authorize("Admin"),
    validate(issueCertificateSchema),
    issueCertificate,
+);
+
+/**
+ * @swagger
+ * /certification/certificates:
+ *   get:
+ *     summary: Get all hotels with certificate details
+ *     description: >
+ *       Returns all certificate records with full hotel information populated.
+ *       Optionally filter by certificate status using the `status` query parameter.
+ *       Accessible by Admin and Auditor roles.
+ *     tags: [Certificate Lifecycle]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [ACTIVE, EXPIRED, REVOKED, INACTIVE]
+ *         description: Filter certificates by status
+ *         example: "ACTIVE"
+ *     responses:
+ *       200:
+ *         description: List of certificates with hotel details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: number
+ *                   example: 5
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Certificate'
+ *       400:
+ *         description: Invalid status value
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CertificateErrorResponse'
+ *       401:
+ *         description: Not authorized
+ *       403:
+ *         description: Insufficient role
+ */
+router.get(
+   "/certificates",
+   protect,
+   authorize("Admin", "Auditor"),
+   getHotelsWithCertificates,
 );
 
 /**

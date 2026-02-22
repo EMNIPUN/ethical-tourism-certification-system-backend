@@ -23,6 +23,24 @@ export const issueCertificate = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get all hotels with their certificate details.
+ * GET /certification/certificates
+ */
+export const getHotelsWithCertificates = asyncHandler(async (req, res) => {
+   const { status } = req.query;
+
+   const certificates = await lifecycleService.getAllHotelsWithCertificates(
+      status || null,
+   );
+
+   res.status(200).json({
+      success: true,
+      count: certificates.length,
+      data: certificates,
+   });
+});
+
+/**
  * Get a certificate by certificate number (public).
  * GET /certification/certificates/:certificateNumber
  */
