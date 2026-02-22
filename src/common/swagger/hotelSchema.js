@@ -503,4 +503,108 @@
  *               type: number
  *             reviewCount:
  *               type: integer
- */
+ *
+ *     BestHotelResponse:
+ *       type: object
+ *       properties:
+ *         hotelId:
+ *           type: string
+ *         hotelName:
+ *           type: string
+ *         address:
+ *           type: string
+ *         gps:
+ *           type: object
+ *           properties:
+ *             latitude:
+ *               type: number
+ *             longitude:
+ *               type: number
+ *         certificateLevel:
+ *           type: string
+ *           enum: [PLATINUM, GOLD, SILVER]
+ *         certificateRatingNumber:
+ *           type: number
+ *         feedbackRating:
+ *           type: number
+ *         reviewCount:
+ *           type: integer
+ *         combinedScore:
+ *           type: number
+ *           description: Combined score (40% feedback rating + 60% certificate rating number)
+ *         certificateNumber:
+ *           type: string
+ *
+ *     NearbyHotelResponse:
+ *       allOf:
+ *         - $ref: '#/components/schemas/BestHotelResponse'
+ *         - type: object
+ *           properties:
+ *             distanceKm:
+ *               type: number
+ *               description: Distance from user location in kilometers
+ *
+ *     AIBestHotelObject:
+ *       type: object
+ *       properties:
+ *         hotelId:
+ *           type: string
+ *         hotelName:
+ *           type: string
+ *         address:
+ *           type: string
+ *         contact:
+ *           type: object
+ *           properties:
+ *             phone:
+ *               type: string
+ *             email:
+ *               type: string
+ *             website:
+ *               type: string
+ *         gps:
+ *           type: object
+ *           properties:
+ *             latitude:
+ *               type: number
+ *             longitude:
+ *               type: number
+ *         certificateLevel:
+ *           type: string
+ *           enum: [PLATINUM, GOLD, SILVER]
+ *         certificateRatingNumber:
+ *           type: number
+ *         feedbackRating:
+ *           type: number
+ *         reviewCount:
+ *           type: integer
+ *         combinedScore:
+ *           type: number
+ *           description: Combined score (40% feedback rating + 60% certificate rating number)
+ *         aiRecommendation:
+ *           type: string
+ *           description: AI-generated recommendation reason for this hotel
+ *
+ *     AIHotelRecommendationResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         data:
+ *           type: object
+ *           properties:
+ *             bestHotel:
+ *               $ref: '#/components/schemas/AIBestHotelObject'
+ *             topHotels:
+ *               type: array
+ *               description: Top 10 ranked hotels in Sri Lanka
+ *               items:
+ *                 $ref: '#/components/schemas/BestHotelResponse'
+ *             aiAnalysis:
+ *               type: string
+ *               description: Comprehensive AI analysis of the hotel market in Sri Lanka
+ *             totalCertifiedHotels:
+ *               type: integer
+ *               description: Total number of certified hotels analyzed
+*/
