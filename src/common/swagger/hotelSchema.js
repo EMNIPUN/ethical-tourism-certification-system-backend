@@ -416,4 +416,91 @@
  *           culturalProtection:
  *             culturalAwarenessTraining: true
  *             heritageProtectionPolicy: "Strict adherence to local heritage laws"
+ *
+ *     HotelFeedbackItem:
+ *       type: object
+ *       properties:
+ *         feedbackId:
+ *           type: string
+ *         userId:
+ *           type: string
+ *         userName:
+ *           type: string
+ *         rating:
+ *           type: number
+ *           minimum: 1
+ *           maximum: 5
+ *         feedback:
+ *           type: string
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *
+ *     HotelFeedbackCreateRequest:
+ *       type: object
+ *       required:
+ *         - rating
+ *         - feedback
+ *       properties:
+ *         rating:
+ *           type: number
+ *           minimum: 1
+ *           maximum: 5
+ *         feedback:
+ *           type: string
+ *           minLength: 3
+ *           maxLength: 1000
+ *
+ *     HotelFeedbackUpdateRequest:
+ *       type: object
+ *       properties:
+ *         rating:
+ *           type: number
+ *           minimum: 1
+ *           maximum: 5
+ *         feedback:
+ *           type: string
+ *           minLength: 3
+ *           maxLength: 1000
+ *
+ *     HotelFeedbackListResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         data:
+ *           type: object
+ *           properties:
+ *             hotelId:
+ *               type: string
+ *             hotelName:
+ *               type: string
+ *             averageRating:
+ *               type: number
+ *             reviewCount:
+ *               type: integer
+ *             reviews:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/HotelFeedbackItem'
+ *
+ *     HotelFeedbackMutationResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         data:
+ *           $ref: '#/components/schemas/HotelFeedbackItem'
+ *         summary:
+ *           type: object
+ *           properties:
+ *             averageRating:
+ *               type: number
+ *             reviewCount:
+ *               type: integer
  */
