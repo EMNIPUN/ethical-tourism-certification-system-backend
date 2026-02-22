@@ -1,6 +1,8 @@
-import Hotel from '../../../common/models/Hotel.js';
+import Hotel from '../../certification/application/models/Hotel.js';
+import Feedback from '../models/Feedback.js';
 
-const getReviewSummary = (feedbacks = []) => {
+const getReviewSummary = async (hotelId) => {
+    const feedbacks = await Feedback.find({ hotelId });
     const reviewCount = feedbacks.length;
     const averageRating =
         reviewCount === 0
@@ -11,41 +13,34 @@ const getReviewSummary = (feedbacks = []) => {
                   ).toFixed(1),
               );
 
-    return { reviewCount, averageRating };
+    return { reviewCount, averageRating, feedbacks };
 };
 
-const applyAverageRatingToHotel = (hotel) => {
-    if (!hotel.guestServices) {
-        hotel.guestServices = {};
-    }
-
-    if (!hotel.guestServices.experience) {
-        hotel.guestServices.experience = {};
-    }
-
-    const { averageRating } = getReviewSummary(hotel.feedbacks || []);
-    hotel.guestServices.experience.averageRating = averageRating;
+const updateHotelAverageRating = async (hotelId, averageRating) => {
+    await Hotel.findByIdAndUpdate(
+        hotelId,
+        { 'guestServices.experience.averageRating': averageRating },
+        { new: true },
+    );
 };
 
 export const getHotelFeedbackById = async (hotelId) => {
-    const hotel = await Hotel.findById(
-        hotelId,
-        {
-            _id: 1,
-            'businessInfo.name': 1,
-            feedbacks: 1,
-            'guestServices.experience.averageRating': 1,
-        },
-    ).lean();
+    const hotel = await Hotel.findById(hotelId, {
+        _id: 1,
+        'businessInfo.name': 1,
+        'guestServices.experience.averageRating': 1,
+    }).lean();
 
     if (!hotel) return null;
+
+    const { feedbacks, reviewCount, averageRating } = await getReviewSummary(hotelId);
 
     return {
         hotelId: hotel._id,
         hotelName: hotel.businessInfo?.name,
-        averageRating: hotel.guestServices?.experience?.averageRating || 0,
-        reviewCount: hotel.feedbacks?.length || 0,
-        reviews: (hotel.feedbacks || []).map((item) => ({
+        averageRating: averageRating || hotel.guestServices?.experience?.averageRating || 0,
+        reviewCount,
+        reviews: feedbacks.map((item) => ({
             feedbackId: item._id,
             userId: item.userId,
             userName: item.userName,
@@ -61,30 +56,29 @@ export const addFeedbackToHotel = async (hotelId, user, payload) => {
     const hotel = await Hotel.findById(hotelId);
     if (!hotel) return null;
 
-    hotel.feedbacks.push({
+    const newFeedback = await Feedback.create({
+        hotelId,
         userId: user._id,
         userName: user.name,
         rating: payload.rating,
         feedback: payload.feedback,
     });
 
-    applyAverageRatingToHotel(hotel);
-    await hotel.save();
-
-    const added = hotel.feedbacks[hotel.feedbacks.length - 1];
-    const summary = getReviewSummary(hotel.feedbacks);
+    const { reviewCount, averageRating } = await getReviewSummary(hotelId);
+    await updateHotelAverageRating(hotelId, averageRating);
 
     return {
         feedback: {
-            feedbackId: added._id,
-            userId: added.userId,
-            userName: added.userName,
-            rating: added.rating,
-            feedback: added.feedback,
-            createdAt: added.createdAt,
-            updatedAt: added.updatedAt,
+            feedbackId: newFeedback._id,
+            userId: newFeedback.userId,
+            userName: newFeedback.userName,
+            rating: newFeedback.rating,
+            feedback: newFeedback.feedback,
+            createdAt: newFeedback.createdAt,
+            updatedAt: newFeedback.updatedAt,
         },
-        ...summary,
+        reviewCount,
+        averageRating,
     };
 };
 
@@ -98,8 +92,12 @@ export const updateHotelFeedback = async (
     const hotel = await Hotel.findById(hotelId);
     if (!hotel) return { notFound: 'hotel' };
 
-    const existing = hotel.feedbacks.id(feedbackId);
+    const existing = await Feedback.findById(feedbackId);
     if (!existing) return { notFound: 'feedback' };
+
+    if (existing.hotelId.toString() !== hotelId) {
+        return { notFound: 'feedback' };
+    }
 
     if (!isAdmin && existing.userId.toString() !== user._id.toString()) {
         return { forbidden: true };
@@ -113,10 +111,10 @@ export const updateHotelFeedback = async (
         existing.feedback = payload.feedback;
     }
 
-    applyAverageRatingToHotel(hotel);
-    await hotel.save();
+    await existing.save();
 
-    const summary = getReviewSummary(hotel.feedbacks);
+    const { reviewCount, averageRating } = await getReviewSummary(hotelId);
+    await updateHotelAverageRating(hotelId, averageRating);
 
     return {
         feedback: {
@@ -128,7 +126,8 @@ export const updateHotelFeedback = async (
             createdAt: existing.createdAt,
             updatedAt: existing.updatedAt,
         },
-        ...summary,
+        reviewCount,
+        averageRating,
     };
 };
 
@@ -136,17 +135,21 @@ export const deleteHotelFeedback = async (hotelId, feedbackId, user, isAdmin) =>
     const hotel = await Hotel.findById(hotelId);
     if (!hotel) return { notFound: 'hotel' };
 
-    const existing = hotel.feedbacks.id(feedbackId);
+    const existing = await Feedback.findById(feedbackId);
     if (!existing) return { notFound: 'feedback' };
+
+    if (existing.hotelId.toString() !== hotelId) {
+        return { notFound: 'feedback' };
+    }
 
     if (!isAdmin && existing.userId.toString() !== user._id.toString()) {
         return { forbidden: true };
     }
 
-    existing.deleteOne();
+    await Feedback.findByIdAndDelete(feedbackId);
 
-    applyAverageRatingToHotel(hotel);
-    await hotel.save();
+    const { reviewCount, averageRating } = await getReviewSummary(hotelId);
+    await updateHotelAverageRating(hotelId, averageRating);
 
-    return getReviewSummary(hotel.feedbacks);
+    return { reviewCount, averageRating };
 };

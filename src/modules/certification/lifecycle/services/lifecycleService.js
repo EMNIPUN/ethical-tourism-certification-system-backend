@@ -4,7 +4,7 @@ import Certificate, {
    CERTIFICATE_LEVEL,
    TRUST_SCORE,
 } from "../../../../common/models/certificate.model.js";
-import Hotel from "../../../../common/models/Hotel.js";
+import Hotel from "../../application/models/Hotel.js";
 
 /**
  * lifecycleService.js
