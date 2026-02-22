@@ -6,6 +6,12 @@ import Certificate, {
 } from "../../../../common/models/certificate.model.js";
 import Hotel from "../../application/models/Hotel.js";
 import HotelRequest from "../../../../common/models/HotelRequest.js";
+import {
+   sendCertificateIssuedEmail,
+   sendCertificateExpiredEmail,
+   sendCertificateRenewedEmail,
+   sendCertificateRevokedEmail,
+} from "../../../../common/utils/emailService.js";
 
 /**
  * lifecycleService.js
@@ -41,6 +47,10 @@ const checkAndMarkExpiry = async (certificate) => {
    ) {
       certificate.status = CERTIFICATE_STATUS.EXPIRED;
       await certificate.save();
+
+      // Notify hotel about expiry
+      const hotel = await Hotel.findById(certificate.hotelId);
+      if (hotel) await sendCertificateExpiredEmail(hotel, certificate);
    }
    return certificate;
 };
@@ -97,6 +107,9 @@ export const issueCertificate = async (hotelId, validityPeriodInMonths) => {
       trustScore,
       level,
    });
+
+   // Notify hotel about new certificate
+   await sendCertificateIssuedEmail(hotel, certificate);
 
    return certificate;
 };
@@ -193,7 +206,8 @@ export const updateTrustScore = async (certificateId, scoreChange, reason) => {
    certificate.trustScore = newScore;
 
    // Auto-revoke if below threshold
-   if (newScore < TRUST_SCORE.REVOKE_THRESHOLD) {
+   const wasAutoRevoked = newScore < TRUST_SCORE.REVOKE_THRESHOLD;
+   if (wasAutoRevoked) {
       certificate.status = CERTIFICATE_STATUS.REVOKED;
       certificate.trustScore = TRUST_SCORE.MIN;
       certificate.revokedReason =
@@ -203,6 +217,13 @@ export const updateTrustScore = async (certificateId, scoreChange, reason) => {
    }
 
    await certificate.save();
+
+   // Notify hotel if auto-revoked due to low trust score
+   if (wasAutoRevoked) {
+      const hotel = await Hotel.findById(certificate.hotelId);
+      if (hotel) await sendCertificateRevokedEmail(hotel, certificate);
+   }
+
    return certificate;
 };
 
@@ -253,6 +274,12 @@ export const renewCertificate = async (
    certificate.level = calculateLevel(certificate.trustScore);
 
    await certificate.save();
+
+   // Notify hotel about renewal
+   const hotelForRenewal = await Hotel.findById(certificate.hotelId);
+   if (hotelForRenewal)
+      await sendCertificateRenewedEmail(hotelForRenewal, certificate);
+
    return certificate;
 };
 
@@ -322,6 +349,12 @@ export const revokeCertificate = async (certificateId, reason) => {
    certificate.revokedReason = reason;
 
    await certificate.save();
+
+   // Notify hotel about revocation
+   const hotelForRevoke = await Hotel.findById(certificate.hotelId);
+   if (hotelForRevoke)
+      await sendCertificateRevokedEmail(hotelForRevoke, certificate);
+
    return certificate;
 };
 
@@ -335,8 +368,8 @@ export const revokeCertificate = async (certificateId, reason) => {
 export const getEligibleHotelsForCertification = async () => {
    // Find all hotel requests where both scores are passed
    const eligibleRequests = await HotelRequest.find({
-      "hotelScore.status": "passed",
-      "auditScore.status": "passed",
+      hotelScore: "passed",
+      auditScore: "passed",
    }).populate("hotelId");
 
    if (!eligibleRequests.length) return [];
