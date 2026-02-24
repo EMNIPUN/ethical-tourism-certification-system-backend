@@ -44,7 +44,7 @@ const options = {
          {
             name: "Public Certification Verification & Discovery",
             description:
-               "Public search and contact endpoints for certification verification and discovery.",
+               "Public search and contact endpoints for certification verification and discovery. Includes hotel contact details and tourist feedback/review sections.",
          },
       ],
    },

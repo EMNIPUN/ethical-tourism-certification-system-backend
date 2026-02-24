@@ -12,7 +12,6 @@ import {
    sendCertificateRenewedEmail,
    sendCertificateRevokedEmail,
 } from "../../../../common/utils/emailService.js";
-
 /**
  * lifecycleService.js
  *
