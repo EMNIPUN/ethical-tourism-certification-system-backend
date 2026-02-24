@@ -26,6 +26,37 @@ export const calculateLevel = (score) => {
    return null; // Below threshold — should be revoked
 };
 
+// --- Helper: Calculate trust score from multiple weighted factors ---
+export const calculateTrustScore = ({
+   averageRating,
+   reviewCount,
+   renewalCount,
+   issuedDate,
+}) => {
+   // Factor 1: Average Rating (60%) — normalize 0–5 scale to 0–100
+   const ratingScore = (averageRating / 5) * 100;
+
+   // Factor 2: Review Count (20%) — capped at 50 reviews for full contribution
+   const reviewScore = Math.min(reviewCount / 50, 1) * 100;
+
+   // Factor 3: Renewal Count (10%) — capped at 5 renewals for full contribution
+   const renewalScore = Math.min(renewalCount / 5, 1) * 100;
+
+   // Factor 4: Certificate Age (10%) — capped at 24 months for full contribution
+   const ageInMonths =
+      (Date.now() - new Date(issuedDate).getTime()) /
+      (1000 * 60 * 60 * 24 * 30.44);
+   const ageScore = Math.min(ageInMonths / 24, 1) * 100;
+
+   const weighted =
+      ratingScore * 0.6 +
+      reviewScore * 0.2 +
+      renewalScore * 0.1 +
+      ageScore * 0.1;
+
+   return Math.round(clampScore(weighted));
+};
+
 // --- Helper: Generate unique certificate number ---
 const generateCertificateNumber = () => {
    const timestamp = Date.now().toString(36).toUpperCase();
@@ -353,6 +384,74 @@ export const revokeCertificate = async (certificateId, reason) => {
    const hotelForRevoke = await Hotel.findById(certificate.hotelId);
    if (hotelForRevoke)
       await sendCertificateRevokedEmail(hotelForRevoke, certificate);
+
+   return certificate;
+};
+
+/**
+ * Update the trust score of a hotel's active certificate using weighted feedback factors.
+ *
+ * Factors and weights:
+ *   - Average Rating  60% (0–5 scale normalized to 0–100)
+ *   - Review Count    20% (capped at 50 reviews)
+ *   - Renewal Count   10% (capped at 5 renewals, sourced from certificate)
+ *   - Certificate Age 10% (capped at 24 months, sourced from certificate)
+ *
+ * If the resulting score falls below REVOKE_THRESHOLD (60), the certificate is
+ * automatically revoked and the hotel is notified by email.
+ *
+ * @param {string} hotelId - The hotel's ObjectId.
+ * @param {number} averageRating - The hotel's current average guest rating (0–5 scale).
+ * @param {number} reviewCount - Total number of guest reviews.
+ * @returns {Promise<Object>} The updated certificate document.
+ */
+export const updateCertificateTrustScore = async (
+   hotelId,
+   averageRating,
+   reviewCount,
+) => {
+   if (!mongoose.Types.ObjectId.isValid(hotelId)) {
+      const error = new Error("Invalid hotel ID format");
+      error.statusCode = 400;
+      throw error;
+   }
+
+   const certificate = await Certificate.findOne({
+      hotelId,
+      status: CERTIFICATE_STATUS.ACTIVE,
+   });
+
+   if (!certificate) {
+      const error = new Error("No active certificate found for this hotel");
+      error.statusCode = 404;
+      throw error;
+   }
+
+   const newScore = calculateTrustScore({
+      averageRating,
+      reviewCount,
+      renewalCount: certificate.renewalCount,
+      issuedDate: certificate.issuedDate,
+   });
+
+   certificate.trustScore = newScore;
+
+   const wasAutoRevoked = newScore < TRUST_SCORE.REVOKE_THRESHOLD;
+   if (wasAutoRevoked) {
+      certificate.status = CERTIFICATE_STATUS.REVOKED;
+      certificate.trustScore = TRUST_SCORE.MIN;
+      certificate.revokedReason =
+         "Trust score dropped below minimum threshold based on feedback analysis";
+   } else {
+      certificate.level = calculateLevel(newScore);
+   }
+
+   await certificate.save();
+
+   if (wasAutoRevoked) {
+      const hotel = await Hotel.findById(certificate.hotelId);
+      if (hotel) await sendCertificateRevokedEmail(hotel, certificate);
+   }
 
    return certificate;
 };

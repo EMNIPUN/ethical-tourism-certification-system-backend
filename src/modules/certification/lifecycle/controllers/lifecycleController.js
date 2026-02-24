@@ -128,3 +128,21 @@ export const revokeCertificate = asyncHandler(async (req, res) => {
 
    res.status(200).json({ success: true, data: certificate });
 });
+
+/**
+ * Update certificate trust score based on feedback factors.
+ * PATCH /certification/certificates/hotel/:hotelId/update-score
+ */
+export const updateCertificateTrustScoreByHotel = asyncHandler(
+   async (req, res) => {
+      const { averageRating, reviewCount } = req.body;
+
+      const certificate = await lifecycleService.updateCertificateTrustScore(
+         req.params.hotelId,
+         averageRating,
+         reviewCount,
+      );
+
+      res.status(200).json({ success: true, data: certificate });
+   },
+);
