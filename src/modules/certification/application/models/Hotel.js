@@ -145,6 +145,10 @@ const HotelSchema = new mongoose.Schema({
             type: Number,
             default: 0
         },
+        aiReviewJustification: {
+            type: String,
+            default: ''
+        },
         auditorScore: {
             type: Number,
             default: 0

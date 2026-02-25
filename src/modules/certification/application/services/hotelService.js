@@ -1,4 +1,6 @@
 import Hotel from '../models/Hotel.js';
+import { evaluateHotelAgent } from './evaluationAgent.js';
+
 
 
 /**
@@ -40,11 +42,28 @@ export const createHotel = async (data) => {
         dataCompletionScore: 0,
         googleRating: 0,
         googleReviewScore: 0,
+        aiReviewJustification: '',
         auditorScore: 0,
         totalScore: 0,
         certificationLevel: 'None',
         ...data.scoring // Merge any provided scoring
     };
+
+    try {
+        console.log("Starting ethical evaluation using AI Agent...");
+        const evaluationResult = await evaluateHotelAgent({
+            name: data.businessInfo?.name,
+            address: data.businessInfo?.contact?.address,
+            type: data.businessInfo?.businessType
+        });
+
+        data.scoring.googleReviewScore = evaluationResult.score || 0;
+        data.scoring.aiReviewJustification = evaluationResult.justification || '';
+        console.log("AI Evaluation completed:", evaluationResult);
+    } catch (err) {
+        console.error("AI Evaluation failed during registration:", err);
+        // Continue creating the hotel even if AI fails
+    }
 
     const hotel = await Hotel.create(data);
     return hotel;
