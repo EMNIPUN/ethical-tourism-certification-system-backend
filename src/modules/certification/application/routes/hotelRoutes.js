@@ -50,8 +50,8 @@ const router = express.Router();
  *             type: object
  *             properties:
  *               hotelData:
- *                 type: string
- *                 description: JSON string containing all hotel data matching the HotelRequest schema.
+ *                 type: object
+ *                 description: JSON object containing all hotel data matching the HotelRequest schema.
  *               legalDocuments:
  *                 type: array
  *                 items:
@@ -169,8 +169,8 @@ router
  *             type: object
  *             properties:
  *               hotelData:
- *                 type: string
- *                 description: JSON string containing all hotel data to update.
+ *                 type: object
+ *                 description: JSON object containing all hotel data to update.
  *               legalDocuments:
  *                 type: array
  *                 items:
