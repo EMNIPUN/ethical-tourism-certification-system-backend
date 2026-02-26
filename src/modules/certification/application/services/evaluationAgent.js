@@ -29,7 +29,9 @@ const searchHotel = async ({ query, location }) => {
                 title: response.place_results.title,
                 rating: response.place_results.rating,
                 reviews_count: response.place_results.reviews,
-                address: response.place_results.address
+                address: response.place_results.address,
+                thumbnail: response.place_results.thumbnail,
+                gps: response.place_results.gps_coordinates
             });
         }
 
@@ -40,7 +42,9 @@ const searchHotel = async ({ query, location }) => {
                 title: res.title,
                 rating: res.rating,
                 reviews_count: res.reviews,
-                address: res.address
+                address: res.address,
+                thumbnail: res.thumbnail,
+                gps: res.gps_coordinates
             })));
         }
 
@@ -119,7 +123,12 @@ Output strictly in JSON format matching this schema:
       "place_id": "string", // Return the data_id if present, else place_id
       "title": "string",
       "address": "string",
-      "confidence": number
+      "thumbnail": "string", // Copy verbatim from search results
+      "confidence": number,
+      "gps": {
+         "latitude": number,
+         "longitude": number
+      } // Copy verbatim from search results
     }
   ]
 }`

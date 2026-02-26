@@ -75,7 +75,7 @@ export const createHotel = async (data) => {
  * @param {string|null} placeId - The selected Google place_id, or null if none matched.
  * @returns {Promise<Object>} Object containing the updated hotel and the new hotelRequest.
  */
-export const confirmHotelMatch = async (hotelId, placeId) => {
+export const confirmHotelMatch = async (hotelId, placeId, googleMapsData = null) => {
     const hotel = await Hotel.findById(hotelId);
     if (!hotel) {
         throw new Error("Hotel not found");
@@ -87,6 +87,16 @@ export const confirmHotelMatch = async (hotelId, placeId) => {
     if (placeId) {
         try {
             console.log(`Evaluating reviews for place_id: ${placeId}`);
+
+            if (googleMapsData) {
+                hotel.googleMapsData = {
+                    placeId: googleMapsData.place_id || placeId,
+                    thumbnail: googleMapsData.thumbnail,
+                    address: googleMapsData.address,
+                    gps: googleMapsData.gps
+                };
+            }
+
             evaluationResult = await evaluateHotelReviews(placeId, {
                 name: hotel.businessInfo?.name,
                 address: hotel.businessInfo?.contact?.address,

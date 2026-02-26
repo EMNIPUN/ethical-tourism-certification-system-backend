@@ -11,7 +11,7 @@ const testUser = {
 
 const testHotelData = {
     businessInfo: {
-        name: `AYANA Resort Bali`,
+        name: `Mulia Resort Bali`,
         registrationNumber: `REG-${uniqueId}`,
         licenseNumber: `LIC-${uniqueId}`,
         businessType: "Hotel",
@@ -72,10 +72,10 @@ const runTest = async () => {
 
         // Step 3: Confirm Hotel Match
         console.log("\n[Step 3] Simulating user confirming the first match...");
-        let selectedPlaceId = null;
+        let selectedCandidate = null;
         if (candidates && candidates.length > 0) {
-            selectedPlaceId = candidates[0].place_id;
-            console.log(`Selected place_id: ${selectedPlaceId}`);
+            selectedCandidate = candidates[0];
+            console.log(`Selected place_id: ${selectedCandidate.place_id}`);
         } else {
             console.log("No candidates found. Proceeding with 'None' (null)...");
         }
@@ -84,7 +84,8 @@ const runTest = async () => {
 
         const confirmResponse = await axios.post(`${BASE_URL}/hotels/${hotelId}/confirm-match`,
             {
-                placeId: selectedPlaceId
+                placeId: selectedCandidate?.place_id,
+                googleMapsData: selectedCandidate // Passes thumbnail, address, gps, place_id
             },
             {
                 headers: {

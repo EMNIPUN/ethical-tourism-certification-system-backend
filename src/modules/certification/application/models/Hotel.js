@@ -26,6 +26,17 @@ const HotelSchema = new mongoose.Schema({
         serpApiPropertyToken: { type: String }
     },
 
+    // Google Maps specific metadata saved upon user confirmation
+    googleMapsData: {
+        placeId: { type: String },
+        thumbnail: { type: String },
+        address: { type: String },
+        gps: {
+            latitude: { type: Number },
+            longitude: { type: Number }
+        }
+    },
+
     // 2. Legal & Compliance Documents
     legalDocuments: [{
         documentName: { type: String, required: true },
