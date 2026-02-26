@@ -2,6 +2,7 @@ import express from "express";
 import {
    getHotelFeedback,
    addHotelFeedback,
+   addHotelFeedbackWithTrustSync,
    updateHotelFeedback,
    deleteHotelFeedback,
 } from "../controller/hotelFeedbackController.js";
@@ -84,7 +85,7 @@ router
       protect,
       authorize("Tourist", "Admin"),
       validate(createHotelFeedbackSchema),
-      addHotelFeedback,
+      addHotelFeedbackWithTrustSync,
    );
 
 /**
