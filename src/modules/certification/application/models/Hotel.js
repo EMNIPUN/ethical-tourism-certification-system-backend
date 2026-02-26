@@ -26,6 +26,17 @@ const HotelSchema = new mongoose.Schema({
         serpApiPropertyToken: { type: String }
     },
 
+    // Google Maps specific metadata saved upon user confirmation
+    googleMapsData: {
+        placeId: { type: String },
+        thumbnail: { type: String },
+        address: { type: String },
+        gps: {
+            latitude: { type: Number },
+            longitude: { type: Number }
+        }
+    },
+
     // 2. Legal & Compliance Documents
     legalDocuments: [{
         documentName: { type: String, required: true },
@@ -33,7 +44,10 @@ const HotelSchema = new mongoose.Schema({
         issueDate: { type: Date },
         expiryDate: { type: Date },
         issuingAuthority: { type: String },
-        fileUrl: { type: String }
+        file: {
+            data: Buffer,
+            contentType: String
+        }
     }],
 
     // 3. Employee & Labor Practices
@@ -54,9 +68,9 @@ const HotelSchema = new mongoose.Schema({
             unionWorkerCommittee: { type: Boolean, default: false }
         },
         evidence: {
-            salarySlipsUrl: { type: String },
-            staffHandbookUrl: { type: String },
-            hrPolicyUrl: { type: String }
+            salarySlips: { data: Buffer, contentType: String },
+            staffHandbook: { data: Buffer, contentType: String },
+            hrPolicy: { data: Buffer, contentType: String }
         }
     },
 
@@ -141,6 +155,10 @@ const HotelSchema = new mongoose.Schema({
         googleReviewScore: {
             type: Number,
             default: 0
+        },
+        aiReviewJustification: {
+            type: String,
+            default: ''
         },
         auditorScore: {
             type: Number,

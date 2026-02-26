@@ -9,15 +9,17 @@ const HotelRequestSchema = new mongoose.Schema({
     hotelScore: {
         status: {
             type: String,
-            enum: ['passed', 'failed'],
-            required: true
+            enum: ['pending', 'passed', 'failed'],
+            required: true,
+            default: 'pending'
         }
     },
     auditScore: {
         status: {
             type: String,
-            enum: ['passed', 'failed'],
-            required: true
+            enum: ['pending', 'passed', 'failed'],
+            required: true,
+            default: 'pending'
         }
     }
 }, {
