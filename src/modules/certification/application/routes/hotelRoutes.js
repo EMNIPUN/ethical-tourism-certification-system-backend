@@ -52,6 +52,20 @@ const router = express.Router();
  *               hotelData:
  *                 type: object
  *                 description: JSON object containing all hotel data matching the HotelRequest schema.
+ *                 example:
+ *                   businessInfo:
+ *                     name: "AYANA Resort Bali"
+ *                     registrationNumber: "REG-12345"
+ *                     licenseNumber: "LIC-67890"
+ *                     businessType: "Hotel"
+ *                     contact:
+ *                       ownerName: "John Doe"
+ *                       phone: "+1234567890"
+ *                       email: "hotel@example.com"
+ *                       address: "Bali, Indonesia"
+ *                   guestServices:
+ *                     facilities:
+ *                       numberOfRooms: 50
  *               legalDocuments:
  *                 type: array
  *                 items:
@@ -171,6 +185,20 @@ router
  *               hotelData:
  *                 type: object
  *                 description: JSON object containing all hotel data to update.
+ *                 example:
+ *                   businessInfo:
+ *                     name: "AYANA Resort Bali (Updated)"
+ *                     registrationNumber: "REG-12345"
+ *                     licenseNumber: "LIC-67890"
+ *                     businessType: "Hotel"
+ *                     contact:
+ *                       ownerName: "John Doe"
+ *                       phone: "+1234567890"
+ *                       email: "updated.hotel@example.com"
+ *                       address: "Bali, Indonesia"
+ *                   guestServices:
+ *                     facilities:
+ *                       numberOfRooms: 60
  *               legalDocuments:
  *                 type: array
  *                 items:
@@ -244,6 +272,7 @@ router
  *               placeId:
  *                 type: string
  *                 description: The Google place_id of the selected candidate, or null if none matched.
+ *                 example: "0x2dd2430f68571fcd:0xda9914e4e153cf28"
  *     responses:
  *       200:
  *         description: Match confirmed and hotel evaluated.
