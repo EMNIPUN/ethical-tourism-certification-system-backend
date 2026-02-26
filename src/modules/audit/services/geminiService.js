@@ -5,7 +5,7 @@
 class OpenAIService {
     constructor() {
         this.apiKey = process.env.OPENAI_API_KEY;
-        
+
         if (!this.apiKey) {
             console.warn('⚠️  OPENAI_API_KEY not found in environment variables');
         }
