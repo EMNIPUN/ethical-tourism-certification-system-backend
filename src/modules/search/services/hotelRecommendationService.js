@@ -3,16 +3,21 @@ import Feedback from '../models/Feedback.js';
 
 /**
  * Calculate combined score for a hotel
- * Combines: Average feedback rating (40%) + Certificate trust score (60%)
+ * Combines: Feedback rating (40%) + Hotel rating score (30%) + Certificate trust score (30%)
  */
-export const calculateHotelScore = (feedbackAvgRating, certificateTrustScore) => {
+export const calculateHotelScore = (feedbackAvgRating, hotelRatingScore, certificateTrustScore) => {
     const feedbackWeight = 0.4;
-    const trustScoreWeight = 0.6;
+    const hotelRatingWeight = 0.3;
+    const trustScoreWeight = 0.3;
 
     const normalizedFeedback = feedbackAvgRating ? (feedbackAvgRating / 5) * 100 : 0;
+    const normalizedHotelRatingScore = hotelRatingScore || 0;
     const normalizedTrustScore = certificateTrustScore || 0;
 
-    const combinedScore = normalizedFeedback * feedbackWeight + normalizedTrustScore * trustScoreWeight;
+    const combinedScore =
+        normalizedFeedback * feedbackWeight +
+        normalizedHotelRatingScore * hotelRatingWeight +
+        normalizedTrustScore * trustScoreWeight;
     return Math.round(combinedScore);
 };
 
@@ -36,7 +41,7 @@ export const calculateDistance = (lat1, lon1, lat2, lon2) => {
  */
 export const getBestHotelsInSriLanka = async (limit = 10) => {
     const certificates = await Certificate.find({ status: 'ACTIVE' })
-        .populate('hotelId', 'businessInfo guestServices')
+        .populate('hotelId', 'businessInfo guestServices scoring')
         .sort({ trustScore: -1 })
         .lean();
 
@@ -50,7 +55,9 @@ export const getBestHotelsInSriLanka = async (limit = 10) => {
                     ? Number((feedbacks.reduce((sum, f) => sum + f.rating, 0) / feedbacks.length).toFixed(1))
                     : 0;
 
-            const combinedScore = calculateHotelScore(feedbackAvgRating, cert.trustScore);
+            const hotelRatingScore = cert.hotelId.scoring?.totalScore || 0;
+
+            const combinedScore = calculateHotelScore(feedbackAvgRating, hotelRatingScore, cert.trustScore);
 
             return {
                 hotelId: cert.hotelId._id,
@@ -58,6 +65,7 @@ export const getBestHotelsInSriLanka = async (limit = 10) => {
                 address: cert.hotelId.businessInfo?.contact?.address,
                 gps: cert.hotelId.businessInfo?.contact?.gps,
                 certificateLevel: cert.level,
+                ratingNumber: hotelRatingScore,
                 certificateTrustScore: cert.trustScore,
                 feedbackRating: feedbackAvgRating,
                 reviewCount: feedbacks.length,
@@ -78,7 +86,7 @@ export const getBestHotelsInSriLanka = async (limit = 10) => {
  */
 export const getBestHotelsNearLocation = async (userLat, userLon, radiusKm = 50, limit = 10) => {
     const certificates = await Certificate.find({ status: 'ACTIVE' })
-        .populate('hotelId', 'businessInfo guestServices')
+        .populate('hotelId', 'businessInfo guestServices scoring')
         .lean();
 
     const hotelScores = await Promise.all(
@@ -96,7 +104,9 @@ export const getBestHotelsNearLocation = async (userLat, userLon, radiusKm = 50,
                         ? Number((feedbacks.reduce((sum, f) => sum + f.rating, 0) / feedbacks.length).toFixed(1))
                         : 0;
 
-                const combinedScore = calculateHotelScore(feedbackAvgRating, cert.trustScore);
+                const hotelRatingScore = cert.hotelId.scoring?.totalScore || 0;
+
+                const combinedScore = calculateHotelScore(feedbackAvgRating, hotelRatingScore, cert.trustScore);
 
                 return {
                     hotelId: cert.hotelId._id,
@@ -104,6 +114,7 @@ export const getBestHotelsNearLocation = async (userLat, userLon, radiusKm = 50,
                     address: cert.hotelId.businessInfo?.contact?.address,
                     gps: cert.hotelId.businessInfo?.contact?.gps,
                     certificateLevel: cert.level,
+                    ratingNumber: hotelRatingScore,
                     certificateTrustScore: cert.trustScore,
                     feedbackRating: feedbackAvgRating,
                     reviewCount: feedbacks.length,

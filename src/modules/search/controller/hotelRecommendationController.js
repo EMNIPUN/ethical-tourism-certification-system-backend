@@ -2,17 +2,6 @@ import asyncHandler from '../../../common/utils/asyncHandler.js';
 import * as recommendationService from '../services/hotelRecommendationService.js';
 import * as comprehensiveAIService from '../services/hotelComprehensiveAIService.js';
 
-export const getBestHotels = asyncHandler(async (req, res) => {
-    const limit = req.query.limit ? parseInt(req.query.limit) : 10;
-    const bestHotels = await recommendationService.getBestHotelsInSriLanka(limit);
-
-    res.status(200).json({
-        success: true,
-        count: bestHotels.length,
-        data: bestHotels,
-    });
-});
-
 export const getBestHotelsNearMe = asyncHandler(async (req, res) => {
     const { latitude, longitude } = req.query;
     const limit = req.query.limit ? parseInt(req.query.limit) : 10;

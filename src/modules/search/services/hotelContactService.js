@@ -1,5 +1,5 @@
-import Hotel from '../../certification/application/models/Hotel.js';
 import Certificate from '../../../common/models/certificate.model.js';
+import Feedback from '../models/Feedback.js';
 
 const CERTIFICATE_LEVEL_PRIORITY = {
     PLATINUM: 1,
@@ -23,7 +23,54 @@ const sortByCertificateLevelPriority = (a, b) => {
     return bTrustScore - aTrustScore;
 };
 
-const toHotelContactResponse = (hotel, certificate) => ({
+const buildFeedbackSummaryMap = async (hotelIds = []) => {
+    if (!hotelIds.length) {
+        return new Map();
+    }
+
+    const feedbacks = await Feedback.find({
+        hotelId: { $in: hotelIds },
+    })
+        .sort('-createdAt')
+        .lean();
+
+    const summaryMap = new Map();
+
+    for (const feedback of feedbacks) {
+        const hotelId = String(feedback.hotelId);
+        const existing = summaryMap.get(hotelId) || {
+            reviewCount: 0,
+            averageRating: 0,
+            totalRating: 0,
+            recentFeedbacks: [],
+        };
+
+        existing.reviewCount += 1;
+        existing.totalRating += Number(feedback.rating) || 0;
+
+        if (existing.recentFeedbacks.length < 3) {
+            existing.recentFeedbacks.push({
+                rating: feedback.rating,
+                feedback: feedback.feedback,
+                createdAt: feedback.createdAt,
+            });
+        }
+
+        summaryMap.set(hotelId, existing);
+    }
+
+    for (const [hotelId, summary] of summaryMap.entries()) {
+        summary.averageRating = summary.reviewCount
+            ? Number((summary.totalRating / summary.reviewCount).toFixed(1))
+            : 0;
+        delete summary.totalRating;
+        summaryMap.set(hotelId, summary);
+    }
+
+    return summaryMap;
+};
+
+const toHotelContactResponse = (hotel, certificate, feedbackSummary) => ({
     hotelId: hotel._id,
     businessInfo: hotel.businessInfo,
     certificate: certificate ? {
@@ -38,50 +85,77 @@ const toHotelContactResponse = (hotel, certificate) => ({
         createdAt: certificate.createdAt,
         updatedAt: certificate.updatedAt,
     } : null,
+    feedbackSummary: feedbackSummary || {
+        reviewCount: 0,
+        averageRating: 0,
+        recentFeedbacks: [],
+    },
     createdAt: hotel.createdAt,
     updatedAt: hotel.updatedAt,
 });
 
 export const getAllHotelContactDetails = async () => {
-    const hotels = await Hotel.find({})
+    const certificates = await Certificate.find({ status: 'ACTIVE' })
+        .populate('hotelId')
         .sort('-createdAt')
         .lean();
 
-    const results = await Promise.all(
-        hotels.map(async (hotel) => {
-            const certificate = await Certificate.findOne({ hotelId: hotel._id }).lean();
-            return toHotelContactResponse(hotel, certificate);
-        })
-    );
+    const validCertificates = certificates.filter((certificate) => certificate.hotelId);
+    const hotelIds = validCertificates.map((certificate) => certificate.hotelId._id);
+    const feedbackSummaryMap = await buildFeedbackSummaryMap(hotelIds);
+
+    const results = validCertificates.map((certificate) => {
+        const hotelIdString = String(certificate.hotelId._id);
+        const feedbackSummary = feedbackSummaryMap.get(hotelIdString);
+
+        return toHotelContactResponse(certificate.hotelId, certificate, feedbackSummary);
+    });
 
     return results.sort(sortByCertificateLevelPriority);
 };
 
 export const getHotelContactDetailsById = async (id) => {
-    const hotel = await Hotel.findById(id).lean();
+    const certificate = await Certificate.findOne({
+        status: 'ACTIVE',
+        hotelId: id,
+    })
+        .populate('hotelId')
+        .lean();
 
-    if (!hotel) return null;
+    if (!certificate?.hotelId) return null;
 
-    const certificate = await Certificate.findOne({ hotelId: id }).lean();
+    const feedbackSummaryMap = await buildFeedbackSummaryMap([certificate.hotelId._id]);
+    const feedbackSummary = feedbackSummaryMap.get(String(certificate.hotelId._id));
 
-    return toHotelContactResponse(hotel, certificate);
+    return toHotelContactResponse(certificate.hotelId, certificate, feedbackSummary);
 };
 
 export const searchHotelContactsByLocation = async (location) => {
     const normalizedLocation = location.trim().toLowerCase();
 
-    const hotels = await Hotel.find({
-        'businessInfo.contact.address': { $regex: normalizedLocation, $options: 'i' },
-    })
+    const certificates = await Certificate.find({ status: 'ACTIVE' })
+        .populate({
+            path: 'hotelId',
+            match: {
+                'businessInfo.contact.address': {
+                    $regex: normalizedLocation,
+                    $options: 'i',
+                },
+            },
+        })
         .sort('-createdAt')
         .lean();
 
-    const results = await Promise.all(
-        hotels.map(async (hotel) => {
-            const certificate = await Certificate.findOne({ hotelId: hotel._id }).lean();
-            return toHotelContactResponse(hotel, certificate);
-        })
-    );
+    const matchedCertificates = certificates.filter((certificate) => certificate.hotelId);
+    const hotelIds = matchedCertificates.map((certificate) => certificate.hotelId._id);
+    const feedbackSummaryMap = await buildFeedbackSummaryMap(hotelIds);
+
+    const results = matchedCertificates.map((certificate) => {
+        const hotelIdString = String(certificate.hotelId._id);
+        const feedbackSummary = feedbackSummaryMap.get(hotelIdString);
+
+        return toHotelContactResponse(certificate.hotelId, certificate, feedbackSummary);
+    });
 
     return results.sort(sortByCertificateLevelPriority);
 };

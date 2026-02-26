@@ -1,6 +1,5 @@
 import express from 'express';
 import {
-    getBestHotels,
     getBestHotelsNearMe,
     getAIHotelRecommendations,
 } from '../controller/hotelRecommendationController.js';
@@ -34,47 +33,6 @@ router.get(
     protect,
     authorize('Admin', 'Hotel Owner', 'Auditor', 'Tourist'),
     getAIHotelRecommendations,
-);
-
-/**
- * @swagger
- * /hotels-search/best-hotels:
- *   get:
- *     summary: Get best hotels in Sri Lanka sorted by combined score
- *     tags: [Public Certification Verification & Discovery]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *         description: Number of hotels to return (default 10)
- *     responses:
- *       200:
- *         description: List of best hotels in Sri Lanka
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 count:
- *                   type: integer
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/BestHotelResponse'
- *       401:
- *         description: Not authorized
- */
-router.get(
-    '/best-hotels',
-    protect,
-    authorize('Admin', 'Hotel Owner', 'Auditor', 'Tourist'),
-    getBestHotels,
 );
 
 /**
