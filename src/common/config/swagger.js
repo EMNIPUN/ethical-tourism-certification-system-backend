@@ -45,6 +45,11 @@ const options = {
             description:
                "Public search and contact endpoints for certification verification and discovery. Includes hotel contact details and tourist feedback/review sections.",
          },
+         {
+            name: "Audit & Review",
+            description:
+               "API endpoints for auditing and reviewing hotel certification requests. Includes section-wise reviews, scoring, compliance checks, and site visit management.",
+         },
       ],
    },
    apis: [
