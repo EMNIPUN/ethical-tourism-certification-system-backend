@@ -357,18 +357,18 @@ export const uploadHotelDocuments = asyncHandler(async (req, res) => {
             try {
                 // Extract text from uploaded file buffer
                 const text = await documentProcessingService.processDocumentBuffer(
-                    file.buffer, 
+                    file.buffer,
                     file.originalname
                 );
-                
+
                 const chunks = documentProcessingService.splitIntoChunks(text);
-                
+
                 // Create embeddings for each chunk
                 for (let i = 0; i < chunks.length; i++) {
                     const embedding = await geminiService.generateEmbedding(chunks[i]);
                     await index.insertItem({
                         id: `uploaded_${idx}_chunk_${i}_${Date.now()}`,
-                        metadata: { 
+                        metadata: {
                             text: chunks[i],
                             source: file.originalname,
                             hotelId: hotelId,
@@ -378,9 +378,9 @@ export const uploadHotelDocuments = asyncHandler(async (req, res) => {
                     });
                     totalChunks++;
                 }
-                
+
                 processedDocs.push(file.originalname);
-                
+
                 // Store metadata for hotel record update
                 uploadedDocMetadata.push({
                     documentName: file.originalname,
@@ -408,7 +408,7 @@ Address: ${hotel.businessInfo.contact.address}`;
         const embedding = await geminiService.generateEmbedding(basicInfoChunks[i]);
         await index.insertItem({
             id: `basic_info_${i}`,
-            metadata: { 
+            metadata: {
                 text: basicInfoChunks[i],
                 source: 'Business Information',
                 hotelId: hotelId,
@@ -435,7 +435,7 @@ Overtime Policy: ${hotel.employeePractices.workerRights?.overtimePolicy || 'N/A'
             const embedding = await geminiService.generateEmbedding(empChunks[i]);
             await index.insertItem({
                 id: `employee_${i}`,
-                metadata: { 
+                metadata: {
                     text: empChunks[i],
                     source: 'Employee Practices',
                     hotelId: hotelId,
@@ -462,7 +462,7 @@ Composting: ${hotel.sustainability.wasteManagement?.composting ? 'Yes' : 'No'}`;
             const embedding = await geminiService.generateEmbedding(sustChunks[i]);
             await index.insertItem({
                 id: `sustainability_${i}`,
-                metadata: { 
+                metadata: {
                     text: sustChunks[i],
                     source: 'Sustainability',
                     hotelId: hotelId,
@@ -483,12 +483,12 @@ Composting: ${hotel.sustainability.wasteManagement?.composting ? 'Yes' : 'No'}`;
                 try {
                     const text = await documentProcessingService.processDocument(doc.fileUrl);
                     const chunks = documentProcessingService.splitIntoChunks(text);
-                    
+
                     for (let i = 0; i < chunks.length; i++) {
                         const embedding = await geminiService.generateEmbedding(chunks[i]);
                         await index.insertItem({
                             id: `legal_doc_${idx}_chunk_${i}`,
-                            metadata: { 
+                            metadata: {
                                 text: chunks[i],
                                 source: doc.documentName || 'Legal Document',
                                 hotelId: hotelId,
@@ -521,12 +521,12 @@ Composting: ${hotel.sustainability.wasteManagement?.composting ? 'Yes' : 'No'}`;
                 try {
                     const text = await documentProcessingService.processDocument(doc.url);
                     const chunks = documentProcessingService.splitIntoChunks(text);
-                    
+
                     for (let i = 0; i < chunks.length; i++) {
                         const embedding = await geminiService.generateEmbedding(chunks[i]);
                         await index.insertItem({
                             id: `evidence_${idx}_chunk_${i}`,
-                            metadata: { 
+                            metadata: {
                                 text: chunks[i],
                                 source: doc.name,
                                 hotelId: hotelId,
@@ -547,7 +547,7 @@ Composting: ${hotel.sustainability.wasteManagement?.composting ? 'Yes' : 'No'}`;
     // Update hotel record with uploaded document metadata
     if (uploadedDocMetadata.length > 0) {
         await Hotel.findByIdAndUpdate(hotelId, {
-            $push: { 
+            $push: {
                 legalDocuments: { $each: uploadedDocMetadata }
             }
         });
