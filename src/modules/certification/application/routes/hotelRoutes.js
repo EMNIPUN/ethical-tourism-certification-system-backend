@@ -5,6 +5,7 @@ import {
    getHotel,
    updateHotel,
    deleteHotel,
+   confirmMatch,
 } from "../controllers/hotelController.js";
 import {
    protect,
@@ -246,5 +247,12 @@ router
       updateHotel,
    )
    .delete(protect, authorize("Admin", "Hotel Owner"), deleteHotel);
+
+router.post(
+   "/:id/confirm-match",
+   protect,
+   authorize("Hotel Owner", "Admin"),
+   confirmMatch
+);
 
 export default router;

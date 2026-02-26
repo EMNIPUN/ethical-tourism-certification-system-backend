@@ -1,7 +1,6 @@
 import Hotel from '../models/Hotel.js';
 import HotelRequest from '../../../../common/models/HotelRequest.js';
-
-import { evaluateHotelAgent } from './evaluationAgent.js';
+import { searchHotelCandidates, evaluateHotelReviews } from './evaluationAgent.js';
 
 
 
@@ -51,35 +50,70 @@ export const createHotel = async (data) => {
         ...data.scoring // Merge any provided scoring
     };
 
+    let candidates = [];
     try {
-        console.log("Starting ethical evaluation using AI Agent...");
-        const evaluationResult = await evaluateHotelAgent({
+        console.log("Searching for hotel candidates via AI Agent...");
+        candidates = await searchHotelCandidates({
             name: data.businessInfo?.name,
             address: data.businessInfo?.contact?.address,
             type: data.businessInfo?.businessType
         });
-
-        data.scoring.googleReviewScore = evaluationResult.score || 0;
-        data.scoring.aiReviewJustification = evaluationResult.justification || '';
-        console.log("AI Evaluation completed:", evaluationResult);
+        console.log("Candidate Search completed:", candidates.length, "found.");
     } catch (err) {
-        console.error("AI Evaluation failed during registration:", err);
-        // Continue creating the hotel even if AI fails
+        console.error("Agent Search failed during registration:", err);
     }
 
     const hotel = await Hotel.create(data);
 
-    // Create the HotelRequest based on AI score
-    const aiScore = data.scoring.googleReviewScore;
-    const hotelScoreStatus = aiScore >= 60 ? 'passed' : 'failed';
+    return { hotel, candidates };
+};
 
+/**
+ * Confirms the hotel's Google Maps match and performs the final AI review evaluation.
+ * 
+ * @param {string} hotelId - The ID of the registered hotel.
+ * @param {string|null} placeId - The selected Google place_id, or null if none matched.
+ * @returns {Promise<Object>} Object containing the updated hotel and the new hotelRequest.
+ */
+export const confirmHotelMatch = async (hotelId, placeId) => {
+    const hotel = await Hotel.findById(hotelId);
+    if (!hotel) {
+        throw new Error("Hotel not found");
+    }
+
+    let hotelScoreStatus = 'pending';
+    let evaluationResult = null;
+
+    if (placeId) {
+        try {
+            console.log(`Evaluating reviews for place_id: ${placeId}`);
+            evaluationResult = await evaluateHotelReviews(placeId, {
+                name: hotel.businessInfo?.name,
+                address: hotel.businessInfo?.contact?.address,
+                type: hotel.businessInfo?.businessType
+            });
+
+            hotel.scoring.googleReviewScore = evaluationResult.score || 0;
+            hotel.scoring.aiReviewJustification = evaluationResult.justification || '';
+
+            await hotel.save();
+
+            hotelScoreStatus = hotel.scoring.googleReviewScore >= 60 ? 'passed' : 'failed';
+            console.log("AI Review Evaluation completed:", evaluationResult);
+        } catch (err) {
+            console.error("AI Review Evaluation failed:", err);
+            hotelScoreStatus = 'failed'; // Fail if agent crashes on found hotel
+        }
+    }
+
+    // Create the HotelRequest based on the status
     const hotelRequest = await HotelRequest.create({
         hotelId: hotel._id,
         hotelScore: { status: hotelScoreStatus },
         auditScore: { status: 'pending' } // Audit happens later
     });
 
-    return { hotel, hotelRequest };
+    return { hotel, hotelRequest, evaluationResult };
 };
 
 /**

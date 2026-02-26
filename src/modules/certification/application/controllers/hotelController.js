@@ -65,14 +65,39 @@ export const createHotel = asyncHandler(async (req, res) => {
         }
     }
 
-    const { hotel, hotelRequest } = await hotelService.createHotel(hotelData);
-
-    const hasPassed = hotelRequest.hotelScore.status === 'passed';
-    const message = hasPassed
-        ? "Hotel created successfully! The AI evaluation passed the initial ethical check."
-        : "Hotel created, but the AI evaluation scored below the minimum threshold. Manual review may be required.";
+    const { hotel, candidates } = await hotelService.createHotel(hotelData);
 
     res.status(201).json({
+        success: true,
+        message: "Hotel created successfully. Please confirm the matching Google Business profile.",
+        data: {
+            hotelId: hotel._id,
+            candidates: candidates
+        }
+    });
+});
+
+/**
+ * Step 2: Confirms a hotel match and evaluates reviews.
+ * 
+ * @description
+ * Handles POST requests to `/api/hotels/:id/confirm-match`.
+ * Expects { placeId: "..." } or { placeId: null } in req.body.
+ */
+export const confirmMatch = asyncHandler(async (req, res) => {
+    const { placeId } = req.body;
+    const { id: hotelId } = req.params;
+
+    const { hotel, hotelRequest } = await hotelService.confirmHotelMatch(hotelId, placeId);
+
+    const hasPassed = hotelRequest.hotelScore.status === 'passed';
+    const message = hotelRequest.hotelScore.status === 'pending'
+        ? "No Google Business profile selected. Evaluation is pending manual review."
+        : hasPassed
+            ? "Match confirmed! The AI evaluation passed the initial ethical check."
+            : "Match confirmed, but the AI evaluation scored below the minimum threshold. Manual review may be required.";
+
+    res.status(200).json({
         success: true,
         message: message,
         evaluation: {

@@ -9,29 +9,49 @@ const openai = new OpenAI({
 
 const SERPAPI_KEY = process.env.SERPAPI_KEY;
 
-// Tool implementations
+// 1. Search Tool
 const searchHotel = async ({ query, location }) => {
     try {
         const response = await getJson({
-            engine: "google_local",
+            engine: "google_maps",
             q: query,
-            location: location || "Global",
+            ll: "@-8.409518,115.188919,10z", // default center to Bali or use global
+            type: "search",
             api_key: SERPAPI_KEY
         });
 
-        return response.local_results?.slice(0, 5).map(res => ({
-            place_id: res.place_id,
-            title: res.title,
-            rating: res.rating,
-            reviews_count: res.reviews,
-            address: res.address
-        })) || [];
+        let results = [];
+
+        // Google Maps returns a direct match in place_results
+        if (response.place_results) {
+            results.push({
+                place_id: response.place_results.data_id || response.place_results.place_id,
+                title: response.place_results.title,
+                rating: response.place_results.rating,
+                reviews_count: response.place_results.reviews,
+                address: response.place_results.address
+            });
+        }
+
+        // Or multiple matches in local_results
+        if (response.local_results) {
+            results = results.concat(response.local_results.slice(0, 5).map(res => ({
+                place_id: res.data_id || res.place_id,
+                title: res.title,
+                rating: res.rating,
+                reviews_count: res.reviews,
+                address: res.address
+            })));
+        }
+
+        return results;
     } catch (error) {
         console.error("SerpApi Search Error:", error);
         return { error: "Failed to search hotel on Google" };
     }
 };
 
+// 2. Reviews Tool
 const fetchReviews = async ({ place_id }) => {
     try {
         let allReviews = [];
@@ -40,8 +60,8 @@ const fetchReviews = async ({ place_id }) => {
         for (let i = 0; i < 2; i++) {
             const response = await getJson({
                 engine: "google_maps_reviews",
-                data_id: undefined, // Requires data_id if place_id fails, but usually place_id works if fetched from local
-                place_id: place_id,
+                data_id: place_id.startsWith("0x") ? place_id : undefined, // Often data_id looks like 0x...
+                place_id: place_id.startsWith("0x") ? undefined : place_id,
                 next_page_token: next_page_token,
                 api_key: SERPAPI_KEY
             });
@@ -58,55 +78,99 @@ const fetchReviews = async ({ place_id }) => {
                 break;
             }
         }
-        return allReviews || { message: "No reviews found." };
+        return allReviews.length ? allReviews : { message: "No reviews found." };
     } catch (error) {
         console.error("SerpApi Reviews Error:", error);
         return { error: "Failed to fetch reviews" };
     }
 };
 
-// Tool Definitions for OpenAI
-const tools = [
-    {
-        type: "function",
-        function: {
-            name: "search_hotel",
-            description: "Search for a hotel on Google Local to find its correct place_id.",
-            parameters: {
-                type: "object",
-                properties: {
-                    query: { type: "string", description: "The name of the hotel to search for." },
-                    location: { type: "string", description: "The location/city of the hotel." }
-                },
-                required: ["query"]
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
-            name: "fetch_reviews",
-            description: "Fetch reviews for a specific Google place_id.",
-            parameters: {
-                type: "object",
-                properties: {
-                    place_id: { type: "string", description: "The Google place_id of the hotel." }
-                },
-                required: ["place_id"]
-            }
-        }
-    }
-];
+/**
+ * Step 1: Search for candidates and return them based on confidence
+ */
+export const searchHotelCandidates = async (hotelRegistrationData) => {
+    const searchArgs = {
+        query: hotelRegistrationData.name,
+        location: hotelRegistrationData.address
+    };
 
-export const evaluateHotelAgent = async (hotelRegistrationData) => {
+    const searchResults = await searchHotel(searchArgs);
+
+    if (!searchResults || searchResults.length === 0 || searchResults.error) {
+        return [];
+    }
+
+    const messages = [
+        {
+            role: "system",
+            content: `You are an AI assistant helping to verify hotel registrations.
+You will be provided with the hotel details registered by the user, and an array of Google Local search results.
+Your task is to calculate a match confidence score (0-100) for each search result based on how closely it matches the registered hotel name and address.
+
+You MUST follow these rules exactly:
+- If your confidence for the BEST match is > 90, return ONLY that 1 hotel in the array.
+- If your confidence for the BEST match is > 80 but <= 90, return the top matching hotels (up to 5) in descending order of confidence.
+- If your confidence for the BEST match is <= 80, return the top matching hotels (up to 5) in descending order.
+
+Output strictly in JSON format matching this schema:
+{
+  "candidates": [
+    {
+      "place_id": "string", // Return the data_id if present, else place_id
+      "title": "string",
+      "address": "string",
+      "confidence": number
+    }
+  ]
+}`
+        },
+        {
+            role: "user",
+            content: `Registered Hotel Data:
+Name: ${hotelRegistrationData.name}
+Address: ${hotelRegistrationData.address}
+
+Google Search Results:
+${JSON.stringify(searchResults, null, 2)}`
+        }
+    ];
+
+    try {
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o", // gpt-4o-mini is also fine here if speed/cost is prioritized
+            messages: messages,
+            response_format: { type: "json_object" }
+        });
+
+        const rawContent = response.choices[0].message.content;
+        return JSON.parse(rawContent).candidates || [];
+
+    } catch (error) {
+        console.error("Agent Search Error:", error);
+        return [];
+    }
+};
+
+/**
+ * Step 2: Evaluate a confirmed place_id's reviews to generate a score and justification
+ */
+export const evaluateHotelReviews = async (placeId, hotelRegistrationData) => {
+    const reviews = await fetchReviews({ place_id: placeId });
+
+    if (!Array.isArray(reviews) || reviews.length === 0) {
+        return {
+            score: 0,
+            justification: "No reviews found or error fetching reviews."
+        };
+    }
+
     const messages = [
         {
             role: "system",
             content: `You are an ethical tourism evaluator. 
-Your goal is to find the correct hotel using the provided tools, read its reviews, and evaluate its ethical and sustainability practices.
-If the initial search fails, self-correct and try variations of the hotel name or location.
-Once you have retrieved the reviews, analyze them for positive and negative patterns regarding sustainability, ethics, and service.
-You MUST output your final answer as a raw JSON object (with no markdown block formatting) matching this schema:
+Your goal is to analyze the provided Google reviews for a hotel and evaluate its ethical and sustainability practices.
+Analyze the reviews for positive and negative patterns regarding sustainability, ethics, environmental impact, and staff treatment.
+You MUST output your final answer as a raw JSON object matching this schema:
 {
   "score": <Number 0-100>,
   "justification": "<String explaining the score based on reviews>"
@@ -114,70 +178,28 @@ You MUST output your final answer as a raw JSON object (with no markdown block f
         },
         {
             role: "user",
-            content: `Please evaluate this hotel: \n${JSON.stringify(hotelRegistrationData, null, 2)}`
+            content: `Hotel Registered Data: ${JSON.stringify(hotelRegistrationData)}
+            
+Google Reviews:
+${JSON.stringify(reviews, null, 2)}`
         }
     ];
 
     try {
-        while (true) {
-            const response = await openai.chat.completions.create({
-                model: "gpt-4o",
-                messages: messages,
-                tools: tools,
-                tool_choice: "auto",
-                response_format: { type: "json_object" }
-            });
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: messages,
+            response_format: { type: "json_object" }
+        });
 
-            const responseMessage = response.choices[0].message;
-            messages.push(responseMessage);
+        const rawContent = response.choices[0].message.content;
+        return JSON.parse(rawContent);
 
-            if (responseMessage.tool_calls) {
-                for (const toolCall of responseMessage.tool_calls) {
-                    const functionName = toolCall.function.name;
-                    const functionArgs = JSON.parse(toolCall.function.arguments);
-                    let functionResult;
-
-                    console.log(`[Agent] Calling ${functionName} with ${JSON.stringify(functionArgs)}`);
-
-                    if (functionName === 'search_hotel') {
-                        functionResult = await searchHotel(functionArgs);
-                    } else if (functionName === 'fetch_reviews') {
-                        functionResult = await fetchReviews(functionArgs);
-                    }
-
-                    messages.push({
-                        tool_call_id: toolCall.id,
-                        role: "tool",
-                        name: functionName,
-                        content: JSON.stringify(functionResult)
-                    });
-                }
-            } else {
-                // No more tool calls, the model gave us the final answer
-                console.log("[Agent] Final answer received.");
-                let parsedResult;
-                try {
-                    // Try to parse the raw text output
-                    let rawContent = responseMessage.content;
-                    // Remove markdown formatting if the LLM ignored instructions
-                    rawContent = rawContent.replace(/^\`\`\`json/m, '').replace(/^\`\`\`/m, '').trim();
-                    parsedResult = JSON.parse(rawContent);
-                } catch (e) {
-                    console.error("Failed to parse LLM final output as JSON:", e);
-                    // Fallback
-                    parsedResult = {
-                        score: 0,
-                        justification: "Failed to evaluate via Agent due to formatting error."
-                    };
-                }
-                return parsedResult;
-            }
-        }
     } catch (error) {
-        console.error("Evaluation Agent Error:", error);
+        console.error("Agent Evaluation Error:", error);
         return {
             score: 0,
-            justification: "An error occurred during evaluation."
+            justification: "Failed to evaluate via Agent due to formatting or network error."
         };
     }
 };

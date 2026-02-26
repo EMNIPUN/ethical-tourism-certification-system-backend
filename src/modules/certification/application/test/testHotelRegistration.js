@@ -11,7 +11,7 @@ const testUser = {
 
 const testHotelData = {
     businessInfo: {
-        name: `Oasis Resort & Spa ${uniqueId}`, // Make name unique to avoid 409 Conflict
+        name: `AYANA Resort Bali`,
         registrationNumber: `REG-${uniqueId}`,
         licenseNumber: `LIC-${uniqueId}`,
         businessType: "Hotel",
@@ -31,7 +31,7 @@ const testHotelData = {
 
 const runTest = async () => {
     console.log("==========================================");
-    console.log("Starting End-to-End Hotel Registration Test");
+    console.log("Starting End-to-End Hotel Registration Test (2-Step Flow)");
     console.log("==========================================");
 
     try {
@@ -50,35 +50,64 @@ const runTest = async () => {
         }
         console.log("✅ Token acquired.");
 
-        // Step 2: Register Hotel
-        console.log("\n[Step 2] Sending POST request to create hotel");
-        console.log("Waiting for backend processing (This includes the AI Agent evaluation via SerpApi)...");
+        // Step 2: Register Hotel (Search Candidates)
+        console.log("\n[Step 2] Sending POST request to create hotel and search for candidates...");
 
-        const response = await axios.post(`${BASE_URL}/hotels`, testHotelData, {
+        const createResponse = await axios.post(`${BASE_URL}/hotels`, testHotelData, {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             }
         });
 
-        console.log("\n[Step 3] Response Received (Status:", response.status + ")");
+        console.log("Server Message:", createResponse.data.message);
 
-        const hotel = response.data.data?.hotel || response.data.data;
-        const evaluation = response.data.evaluation;
+        const { hotelId, candidates } = createResponse.data.data;
+        console.log(`✅ Hotel Draft Created. ID: ${hotelId}`);
+        console.log(`Found ${candidates?.length || 0} candidate(s):`);
+
+        candidates?.forEach((c, i) => {
+            console.log(`  ${i + 1}. ${c.title} (Confidence: ${c.confidence || 'N/A'}) - ${c.address}`);
+        });
+
+        // Step 3: Confirm Hotel Match
+        console.log("\n[Step 3] Simulating user confirming the first match...");
+        let selectedPlaceId = null;
+        if (candidates && candidates.length > 0) {
+            selectedPlaceId = candidates[0].place_id;
+            console.log(`Selected place_id: ${selectedPlaceId}`);
+        } else {
+            console.log("No candidates found. Proceeding with 'None' (null)...");
+        }
+
+        console.log("Waiting for backend review evaluation...");
+
+        const confirmResponse = await axios.post(`${BASE_URL}/hotels/${hotelId}/confirm-match`,
+            {
+                placeId: selectedPlaceId
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+        const hotel = confirmResponse.data.data?.hotel;
+        const evaluation = confirmResponse.data.evaluation;
 
         console.log("\n==========================================");
-        console.log("Test Outcome Analysis:");
+        console.log("Final Outcome Analysis:");
         console.log("==========================================");
 
-        console.log(`Server Message: ${response.data.message}`);
+        console.log(`Server Message: ${confirmResponse.data.message}`);
 
         if (hotel && evaluation) {
-            console.log(`✅ Hotel created successfully. ID: ${hotel._id}`);
             console.log(`✅ AI Agent Score (googleReviewScore): ${evaluation.aiScore}`);
             console.log(`✅ AI Evaluation Status: ${evaluation.status.toUpperCase()}`);
             console.log(`✅ AI Justification: ${evaluation.aiJustification || "None provided"}`);
         } else {
-            console.log("❌ Response received, but missing expected hotel/evaluation data payload.");
+            console.log("❌ Response received, but missing expected evaluation data payload.");
         }
 
     } catch (error) {
