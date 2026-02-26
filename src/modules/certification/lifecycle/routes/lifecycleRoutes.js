@@ -3,10 +3,12 @@ import {
    issueCertificate,
    getCertificate,
    getHotelsWithCertificates,
+   getEligibleHotels,
    updateTrustScore,
    renewCertificate,
    revokeCertificate,
    inactivateCertificate,
+   updateCertificateTrustScoreByHotel,
 } from "../controllers/lifecycleController.js";
 import {
    protect,
@@ -19,6 +21,7 @@ import {
    renewCertificateSchema,
    revokeCertificateSchema,
    inactivateCertificateSchema,
+   updateCertificateTrustScoreSchema,
 } from "../validations/lifecycleValidation.js";
 
 const router = express.Router();
@@ -222,6 +225,80 @@ router.get(
    protect,
    authorize("Admin", "Auditor"),
    getHotelsWithCertificates,
+);
+
+/**
+ * @swagger
+ * /certification/certificates/eligible:
+ *   get:
+ *     summary: Get hotels eligible for certification
+ *     description: >
+ *       Returns all hotels whose HotelRequest record has both `hotelScore` and
+ *       `auditScore` set to **passed**. Each result includes full hotel details,
+ *       the scores, and an `alreadyCertified` flag indicating whether the hotel
+ *       already holds an ACTIVE certificate. Accessible by Admin and Auditor.
+ *     tags: [Certificate Lifecycle]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of hotels eligible for certificate issuance
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: number
+ *                   example: 3
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       hotelRequestId:
+ *                         type: string
+ *                         example: "665f1a2b3c4d5e6f7a8b9c0f"
+ *                       hotelId:
+ *                         type: string
+ *                         example: "665f1a2b3c4d5e6f7a8b9c0e"
+ *                       hotel:
+ *                         $ref: '#/components/schemas/Certificate'
+ *                       hotelScore:
+ *                         type: object
+ *                         properties:
+ *                           status:
+ *                             type: string
+ *                             example: "passed"
+ *                       auditScore:
+ *                         type: object
+ *                         properties:
+ *                           status:
+ *                             type: string
+ *                             example: "passed"
+ *                       alreadyCertified:
+ *                         type: boolean
+ *                         description: true if an ACTIVE certificate already exists
+ *                         example: false
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *       401:
+ *         description: Not authorized
+ *       403:
+ *         description: Insufficient role
+ */
+router.get(
+   "/certificates/eligible",
+   protect,
+   authorize("Admin", "Auditor"),
+   getEligibleHotels,
 );
 
 /**
@@ -504,6 +581,90 @@ router.delete(
    authorize("Admin"),
    validate(inactivateCertificateSchema),
    inactivateCertificate,
+);
+
+/**
+ * @swagger
+ * /certification/certificates/hotel/{hotelId}/update-score:
+ *   patch:
+ *     summary: Update a hotel certificate trust score
+ *     description: >
+ *       Calculates and updates the trust score of the hotel's active certificate
+ *       using four weighted factors: average rating (60%), review count (20%),
+ *       renewal count (10%), and certificate age (10%).
+ *       Also updates the certificate level (PLATINUM / GOLD / SILVER) based on the
+ *       new score, or auto-revokes the certificate if the score drops below the
+ *       revoke threshold (60). The renewal count and certificate age are read directly
+ *       from the certificate record — only averageRating and reviewCount are required
+ *       in the request body. Admin only.
+ *     tags: [Certificate Lifecycle]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: hotelId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ObjectId of the hotel whose active certificate will be updated
+ *         example: "665f1a2b3c4d5e6f7a8b9c0e"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - averageRating
+ *               - reviewCount
+ *             properties:
+ *               averageRating:
+ *                 type: number
+ *                 minimum: 0
+ *                 maximum: 5
+ *                 description: The hotel's current average guest rating (0–5 scale)
+ *                 example: 4.2
+ *               reviewCount:
+ *                 type: integer
+ *                 minimum: 0
+ *                 description: Total number of guest reviews submitted
+ *                 example: 38
+ *     responses:
+ *       200:
+ *         description: Trust score and certificate level updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CertificateResponse'
+ *       400:
+ *         description: Validation error or invalid hotel ID format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CertificateErrorResponse'
+ *       401:
+ *         description: Not authorized
+ *       403:
+ *         description: Insufficient role
+ *       404:
+ *         description: No active certificate found for this hotel
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CertificateErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CertificateErrorResponse'
+ */
+router.patch(
+   "/certificates/hotel/:hotelId/update-score",
+   protect,
+   authorize("Admin"),
+   validate(updateCertificateTrustScoreSchema),
+   updateCertificateTrustScoreByHotel,
 );
 
 export default router;

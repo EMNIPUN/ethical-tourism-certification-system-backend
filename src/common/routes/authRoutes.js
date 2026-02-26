@@ -50,6 +50,8 @@ const router = express.Router();
  *         description: User registered successfully
  *       400:
  *         description: Bad request
+ *       500:
+ *         description: Internal server error
  *
  * /auth/login:
  *   post:

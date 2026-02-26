@@ -98,7 +98,44 @@ src/
 
 ## 📖 API Documentation
 
-Swagger UI is available at **[http://localhost:5000/api-docs](http://localhost:5000/api-docs)**.
+Swagger UI is available at **[http://localhost:5000/api/v1/api-docs](http://localhost:5000/api/v1/api-docs)**.
+
+## ▲ Deploy to Vercel
+
+This project is configured for Vercel serverless deployment using:
+
+- `api/index.js` as the serverless entry.
+- `vercel.json` to route requests.
+
+### 1) Push your code
+
+Push this repository to GitHub (or GitLab/Bitbucket).
+
+### 2) Import project in Vercel
+
+1. Open Vercel dashboard.
+2. Click **New Project**.
+3. Import this repository.
+4. Keep the default build settings for a Node.js project.
+
+### 3) Configure environment variables
+
+Add these variables in Vercel Project Settings → **Environment Variables**:
+
+- `MONGO_URI`
+- `SERPAPI_KEY`
+- `NODE_ENV` (set to `production`)
+- `JWT_SECRET`
+- `JWT_EXPIRE`
+- `JWT_COOKIE_EXPIRE`
+- `SENDGRID_API_KEY` (if email features are used)
+
+### 4) Deploy
+
+Click **Deploy**. After deployment, your endpoints will be available as:
+
+- Health check: `https://<your-vercel-domain>/api/v1/`
+- Swagger: `https://<your-vercel-domain>/api/v1/api-docs`
 
 ## 🧪 Testing
 
