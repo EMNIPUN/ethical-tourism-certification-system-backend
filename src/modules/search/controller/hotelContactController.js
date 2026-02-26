@@ -24,3 +24,23 @@ export const getHotelContactDetailById = asyncHandler(async (req, res) => {
         data: contact
     });
 });
+
+export const searchHotelContactsByLocation = asyncHandler(async (req, res) => {
+    const { location } = req.query;
+
+    if (!location || !location.trim()) {
+        return res.status(400).json({
+            success: false,
+            error: 'location query parameter is required'
+        });
+    }
+
+    const contacts = await hotelContactService.searchHotelContactsByLocation(location);
+
+    res.status(200).json({
+        success: true,
+        count: contacts.length,
+        location,
+        data: contacts
+    });
+});
