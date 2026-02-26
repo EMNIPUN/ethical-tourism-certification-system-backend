@@ -1,6 +1,6 @@
 import Hotel from '../models/Hotel.js';
 import HotelRequest from '../../../../common/models/HotelRequest.js';
-import { searchHotelCandidates, evaluateHotelReviews } from './evaluationAgent.js';
+import { searchHotelCandidates, evaluateHotelReviews, getGoogleMapsDetails } from './evaluationAgent.js';
 
 
 
@@ -75,7 +75,7 @@ export const createHotel = async (data) => {
  * @param {string|null} placeId - The selected Google place_id, or null if none matched.
  * @returns {Promise<Object>} Object containing the updated hotel and the new hotelRequest.
  */
-export const confirmHotelMatch = async (hotelId, placeId, googleMapsData = null) => {
+export const confirmHotelMatch = async (hotelId, placeId) => {
     const hotel = await Hotel.findById(hotelId);
     if (!hotel) {
         throw new Error("Hotel not found");
@@ -88,12 +88,14 @@ export const confirmHotelMatch = async (hotelId, placeId, googleMapsData = null)
         try {
             console.log(`Evaluating reviews for place_id: ${placeId}`);
 
-            if (googleMapsData) {
+            // Fetch map details automatically using placeId
+            const mapDetails = await getGoogleMapsDetails(placeId);
+            if (mapDetails) {
                 hotel.googleMapsData = {
-                    placeId: googleMapsData.place_id || placeId,
-                    thumbnail: googleMapsData.thumbnail,
-                    address: googleMapsData.address,
-                    gps: googleMapsData.gps
+                    placeId: mapDetails.place_id || placeId,
+                    thumbnail: mapDetails.thumbnail,
+                    address: mapDetails.address,
+                    gps: mapDetails.gps
                 };
             }
 

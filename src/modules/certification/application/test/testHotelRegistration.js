@@ -11,7 +11,7 @@ const testUser = {
 
 const testHotelData = {
     businessInfo: {
-        name: `Mulia Resort Bali`,
+        name: `The St. Regis Bali Resort`,
         registrationNumber: `REG-${uniqueId}`,
         licenseNumber: `LIC-${uniqueId}`,
         businessType: "Hotel",
@@ -84,8 +84,7 @@ const runTest = async () => {
 
         const confirmResponse = await axios.post(`${BASE_URL}/hotels/${hotelId}/confirm-match`,
             {
-                placeId: selectedCandidate?.place_id,
-                googleMapsData: selectedCandidate // Passes thumbnail, address, gps, place_id
+                placeId: selectedCandidate?.place_id
             },
             {
                 headers: {

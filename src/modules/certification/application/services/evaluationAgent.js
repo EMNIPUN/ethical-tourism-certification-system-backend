@@ -55,6 +55,32 @@ const searchHotel = async ({ query, location }) => {
     }
 };
 
+export const getGoogleMapsDetails = async (placeId) => {
+    try {
+        const response = await getJson({
+            engine: "google_maps",
+            q: `data_id:${placeId}`,
+            ll: "@-8.409518,115.188919,10z",
+            type: "search",
+            api_key: SERPAPI_KEY
+        });
+
+        if (response.place_results) {
+            return {
+                place_id: response.place_results.data_id || response.place_results.place_id,
+                title: response.place_results.title,
+                address: response.place_results.address,
+                thumbnail: response.place_results.thumbnail,
+                gps: response.place_results.gps_coordinates
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error("SerpApi Place Details Error:", error);
+        return null;
+    }
+};
+
 // 2. Reviews Tool
 const fetchReviews = async ({ place_id }) => {
     try {

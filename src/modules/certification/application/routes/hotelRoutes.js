@@ -405,17 +405,6 @@ router
  *                 type: string
  *                 description: The Google place_id of the selected candidate, or null if none matched.
  *                 example: "0x2dd2430f68571fcd:0xda9914e4e153cf28"
- *               googleMapsData:
- *                 type: object
- *                 description: (Optional) The full candidate object returned from Step 1, containing thumbnail and gps.
- *                 example:
- *                   place_id: "0x2dd2430f68571fcd:0xda9914e4e153cf28"
- *                   title: "AYANA Resort Bali"
- *                   address: "Jimbaran, Bali, Indonesia"
- *                   thumbnail: "https://lh3.googleusercontent.com/..."
- *                   gps:
- *                     latitude: -8.7915
- *                     longitude: 115.1381
  *     responses:
  *       200:
  *         description: Match confirmed and hotel evaluated.
