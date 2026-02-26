@@ -1,37 +1,37 @@
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const connectDB = require('./src/common/config/database');
+import express from 'express';
+import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './src/common/config/swagger.js';
+import { errorHandler } from './src/common/middleware/errorMiddleware.js';
 
-dotenv.config();
+// Module Routes
+import searchModuleRoutes from './src/modules/search/routes/index.js';
+import certificationAppRoutes from './src/modules/certification/application/routes/index.js';
+import certificationLifecycleRoutes from './src/modules/certification/lifecycle/routes/index.js';
+import auditModuleRoutes from './src/modules/audit/routes/index.js';
+import authRoutes from './src/common/routes/authRoutes.js';
 
 const app = express();
 
-// Connect to MongoDB
-connectDB();
-
-// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ message: 'Server is running' });
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Mount Routes
+app.use('/hotels-search', searchModuleRoutes);
+app.use('/hotels', certificationAppRoutes);
+app.use('/certification', certificationLifecycleRoutes);
+app.use('/audits', auditModuleRoutes);
+app.use('/auth', authRoutes);
+
+// Health check for v1
+app.get('/', (req, res) => {
+  res.send('API v1 is running');
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal Server Error',
-    status: err.status || 500,
-  });
-});
+// Error Handling Middleware (must be last)
+app.use(errorHandler);
 
-module.exports = app;
-
-
-
-
-
+export default app;
