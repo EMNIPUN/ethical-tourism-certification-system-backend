@@ -57,15 +57,81 @@ const router = express.Router();
  *                     name: "AYANA Resort Bali"
  *                     registrationNumber: "REG-12345"
  *                     licenseNumber: "LIC-67890"
+ *                     yearEstablished: 1996
  *                     businessType: "Hotel"
  *                     contact:
  *                       ownerName: "John Doe"
  *                       phone: "+1234567890"
  *                       email: "hotel@example.com"
- *                       address: "Bali, Indonesia"
+ *                       website: "https://ayana.com"
+ *                       address: "Jimbaran, Bali, Indonesia"
+ *                       gps:
+ *                         latitude: -8.7915
+ *                         longitude: 115.1381
+ *                     serpApiPropertyToken: "string"
+ *                   employeePractices:
+ *                     workforce:
+ *                       totalEmployees: 100
+ *                       permanentStaff: 80
+ *                       temporaryStaff: 20
+ *                       femaleEmployeesPercentage: 45
+ *                       localEmployeesPercentage: 90
+ *                     workerRights:
+ *                       minimumWageCompliance: true
+ *                       overtimePolicy: "Paid at 1.5x regular rate"
+ *                       workingHoursPolicy: "40 hours per week"
+ *                       leavePolicy: "20 days annual leave"
+ *                       healthInsuranceProvided: true
+ *                       unionWorkerCommittee: true
+ *                   sustainability:
+ *                     resourceUsage:
+ *                       monthlyWaterUsage: 50000
+ *                       monthlyElectricityUsage: 12000
+ *                       fuelUsage: 500
+ *                       renewableEnergyPercentage: 30
+ *                     wasteManagement:
+ *                       wasteSegregation: true
+ *                       recyclingProgram: true
+ *                       composting: true
+ *                       plasticReductionPolicy: "Zero single-use plastics"
+ *                     conservation:
+ *                       waterSavingDevices: true
+ *                       energyEfficientLighting: true
+ *                       rainwaterHarvesting: true
+ *                       greenLandscaping: true
+ *                     certifications:
+ *                       - name: "EarthCheck Gold"
+ *                         dateReceived: "2023-01-15T00:00:00.000Z"
+ *                         expiryDate: "2025-01-15T00:00:00.000Z"
+ *                   community:
+ *                     localSupport:
+ *                       localSupplierPercentage: 70
+ *                       localFoodUsagePercentage: 80
+ *                       handicraftPromotion: true
+ *                       localTourGuides: true
+ *                     projects:
+ *                       csrProjects: "Beach cleaning initiative every month"
+ *                       trainingPrograms: "Hospitality training for local youth"
+ *                       scholarshipPrograms: "Annual scholarship for 5 local students"
+ *                       donations: "$5000 annually to local orphanage"
+ *                     culturalProtection:
+ *                       culturalAwarenessTraining: true
+ *                       heritageProtectionPolicy: "Protection of local temple on premises"
  *                   guestServices:
  *                     facilities:
- *                       numberOfRooms: 50
+ *                       numberOfRooms: 200
+ *                       roomTypes: ["Standard", "Deluxe", "Suite"]
+ *                       maxCapacity: 450
+ *                       accessibilityFeatures: true
+ *                     experience:
+ *                       averageRating: 4.8
+ *                       complaintHandlingPolicy: "Resolution within 24 hours"
+ *                       feedbackSystem: "Post-stay digital survey"
+ *                     safety:
+ *                       cctv: true
+ *                       emergencyExits: true
+ *                       firstAidKits: true
+ *                       disasterPlan: true
  *               legalDocuments:
  *                 type: array
  *                 items:
@@ -190,15 +256,81 @@ router
  *                     name: "AYANA Resort Bali (Updated)"
  *                     registrationNumber: "REG-12345"
  *                     licenseNumber: "LIC-67890"
+ *                     yearEstablished: 1996
  *                     businessType: "Hotel"
  *                     contact:
  *                       ownerName: "John Doe"
  *                       phone: "+1234567890"
  *                       email: "updated.hotel@example.com"
- *                       address: "Bali, Indonesia"
+ *                       website: "https://ayana.com"
+ *                       address: "Jimbaran, Bali, Indonesia"
+ *                       gps:
+ *                         latitude: -8.7915
+ *                         longitude: 115.1381
+ *                     serpApiPropertyToken: "string"
+ *                   employeePractices:
+ *                     workforce:
+ *                       totalEmployees: 100
+ *                       permanentStaff: 80
+ *                       temporaryStaff: 20
+ *                       femaleEmployeesPercentage: 45
+ *                       localEmployeesPercentage: 90
+ *                     workerRights:
+ *                       minimumWageCompliance: true
+ *                       overtimePolicy: "Paid at 1.5x regular rate"
+ *                       workingHoursPolicy: "40 hours per week"
+ *                       leavePolicy: "20 days annual leave"
+ *                       healthInsuranceProvided: true
+ *                       unionWorkerCommittee: true
+ *                   sustainability:
+ *                     resourceUsage:
+ *                       monthlyWaterUsage: 50000
+ *                       monthlyElectricityUsage: 12000
+ *                       fuelUsage: 500
+ *                       renewableEnergyPercentage: 30
+ *                     wasteManagement:
+ *                       wasteSegregation: true
+ *                       recyclingProgram: true
+ *                       composting: true
+ *                       plasticReductionPolicy: "Zero single-use plastics"
+ *                     conservation:
+ *                       waterSavingDevices: true
+ *                       energyEfficientLighting: true
+ *                       rainwaterHarvesting: true
+ *                       greenLandscaping: true
+ *                     certifications:
+ *                       - name: "EarthCheck Gold"
+ *                         dateReceived: "2023-01-15T00:00:00.000Z"
+ *                         expiryDate: "2025-01-15T00:00:00.000Z"
+ *                   community:
+ *                     localSupport:
+ *                       localSupplierPercentage: 70
+ *                       localFoodUsagePercentage: 80
+ *                       handicraftPromotion: true
+ *                       localTourGuides: true
+ *                     projects:
+ *                       csrProjects: "Beach cleaning initiative every month"
+ *                       trainingPrograms: "Hospitality training for local youth"
+ *                       scholarshipPrograms: "Annual scholarship for 5 local students"
+ *                       donations: "$5000 annually to local orphanage"
+ *                     culturalProtection:
+ *                       culturalAwarenessTraining: true
+ *                       heritageProtectionPolicy: "Protection of local temple on premises"
  *                   guestServices:
  *                     facilities:
- *                       numberOfRooms: 60
+ *                       numberOfRooms: 200
+ *                       roomTypes: ["Standard", "Deluxe", "Suite"]
+ *                       maxCapacity: 450
+ *                       accessibilityFeatures: true
+ *                     experience:
+ *                       averageRating: 4.8
+ *                       complaintHandlingPolicy: "Resolution within 24 hours"
+ *                       feedbackSystem: "Post-stay digital survey"
+ *                     safety:
+ *                       cctv: true
+ *                       emergencyExits: true
+ *                       firstAidKits: true
+ *                       disasterPlan: true
  *               legalDocuments:
  *                 type: array
  *                 items:
