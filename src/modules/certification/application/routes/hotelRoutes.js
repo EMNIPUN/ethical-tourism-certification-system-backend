@@ -72,13 +72,7 @@ const router = express.Router();
  *                 description: Upload HR policy evidence (Max 15MB).
  *     responses:
  *       201:
- *         description: Hotel created successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/HotelCreateResponse'
- *       202:
- *         description: Hotel created. Manual confirmation required.
+ *         description: Hotel created. Please confirm the matching Google Business profile.
  *         content:
  *           application/json:
  *             schema:
@@ -87,50 +81,27 @@ const router = express.Router();
  *                 success:
  *                   type: boolean
  *                   example: true
- *                 data:
- *                   $ref: '#/components/schemas/HotelResponse'
- *                 suggestedMatch:
- *                   type: object
- *                   nullable: true
- *                   properties:
- *                     name:
- *                       type: string
- *                     address:
- *                       type: string
- *                     matchScore:
- *                       type: number
- *                     token:
- *                       type: string
- *                     rating:
- *                       type: number
- *                     thumbnail:
- *                       type: string
- *                     matchLogs:
- *                       type: array
- *                       items:
- *                         type: string
- *                 candidates:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       name:
- *                         type: string
- *                       address:
- *                         type: string
- *                       matchScore:
- *                         type: number
- *                       matchLogs:
- *                         type: array
- *                         items:
- *                           type: string
- *                       thumbnail:
- *                         type: string
- *                       token:
- *                         type: string
  *                 message:
  *                   type: string
- *                   example: "Hotel created. Please confirm the correct Google Maps listing."
+ *                   example: "Hotel created successfully. Please confirm the matching Google Business profile."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     hotelId:
+ *                       type: string
+ *                     candidates:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           place_id:
+ *                             type: string
+ *                           title:
+ *                             type: string
+ *                           address:
+ *                             type: string
+ *                           confidence:
+ *                             type: number
  *       400:
  *         description: Validation error or file too large (Max 15MB)
  *         content:
@@ -248,6 +219,63 @@ router
    )
    .delete(protect, authorize("Admin", "Hotel Owner"), deleteHotel);
 
+/**
+ * @swagger
+ * /hotels/{id}/confirm-match:
+ *   post:
+ *     summary: Confirm the Google Business profile match and score the hotel
+ *     tags: [Certification Application Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The hotel ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               placeId:
+ *                 type: string
+ *                 description: The Google place_id of the selected candidate, or null if none matched.
+ *     responses:
+ *       200:
+ *         description: Match confirmed and hotel evaluated.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 evaluation:
+ *                   type: object
+ *                   properties:
+ *                     status:
+ *                       type: string
+ *                     aiScore:
+ *                       type: number
+ *                     aiJustification:
+ *                       type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     hotel:
+ *                       $ref: '#/components/schemas/HotelResponse'
+ *                     hotelRequest:
+ *                       type: object
+ *       404:
+ *         description: Hotel not found
+ */
 router.post(
    "/:id/confirm-match",
    protect,
