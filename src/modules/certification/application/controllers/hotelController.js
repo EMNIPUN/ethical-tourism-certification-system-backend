@@ -65,12 +65,25 @@ export const createHotel = asyncHandler(async (req, res) => {
         }
     }
 
-    const hotel = await hotelService.createHotel(hotelData);
+    const { hotel, hotelRequest } = await hotelService.createHotel(hotelData);
+
+    const hasPassed = hotelRequest.hotelScore.status === 'passed';
+    const message = hasPassed
+        ? "Hotel created successfully! The AI evaluation passed the initial ethical check."
+        : "Hotel created, but the AI evaluation scored below the minimum threshold. Manual review may be required.";
 
     res.status(201).json({
         success: true,
-        data: hotel,
-        message: "Hotel created successfully."
+        message: message,
+        evaluation: {
+            status: hotelRequest.hotelScore.status,
+            aiScore: hotel.scoring.googleReviewScore,
+            aiJustification: hotel.scoring.aiReviewJustification
+        },
+        data: {
+            hotel,
+            hotelRequest
+        }
     });
 });
 

@@ -1,4 +1,6 @@
 import Hotel from '../models/Hotel.js';
+import HotelRequest from '../../../../common/models/HotelRequest.js';
+
 import { evaluateHotelAgent } from './evaluationAgent.js';
 
 
@@ -66,7 +68,18 @@ export const createHotel = async (data) => {
     }
 
     const hotel = await Hotel.create(data);
-    return hotel;
+
+    // Create the HotelRequest based on AI score
+    const aiScore = data.scoring.googleReviewScore;
+    const hotelScoreStatus = aiScore >= 60 ? 'passed' : 'failed';
+
+    const hotelRequest = await HotelRequest.create({
+        hotelId: hotel._id,
+        hotelScore: { status: hotelScoreStatus },
+        auditScore: { status: 'pending' } // Audit happens later
+    });
+
+    return { hotel, hotelRequest };
 };
 
 /**

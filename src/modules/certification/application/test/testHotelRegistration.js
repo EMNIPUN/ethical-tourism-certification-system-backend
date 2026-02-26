@@ -18,7 +18,7 @@ const testHotelData = {
         contact: {
             ownerName: testUser.name,
             phone: "+1234567890",
-            email: testUser.email,
+            email: `hotel-${uniqueId}@example.com`,
             address: "Bali, Indonesia"
         }
     },
@@ -63,18 +63,22 @@ const runTest = async () => {
 
         console.log("\n[Step 3] Response Received (Status:", response.status + ")");
 
-        const hotel = response.data.data?.data || response.data.data || response.data;
+        const hotel = response.data.data?.hotel || response.data.data;
+        const evaluation = response.data.evaluation;
 
         console.log("\n==========================================");
         console.log("Test Outcome Analysis:");
         console.log("==========================================");
 
-        if (hotel && hotel.scoring) {
+        console.log(`Server Message: ${response.data.message}`);
+
+        if (hotel && evaluation) {
             console.log(`✅ Hotel created successfully. ID: ${hotel._id}`);
-            console.log(`✅ AI Agent Score (googleReviewScore): ${hotel.scoring.googleReviewScore}`);
-            console.log(`✅ AI Justification: ${hotel.scoring.aiReviewJustification || "None provided"}`);
+            console.log(`✅ AI Agent Score (googleReviewScore): ${evaluation.aiScore}`);
+            console.log(`✅ AI Evaluation Status: ${evaluation.status.toUpperCase()}`);
+            console.log(`✅ AI Justification: ${evaluation.aiJustification || "None provided"}`);
         } else {
-            console.log("❌ Response received, but missing expected hotel/scoring data payload.");
+            console.log("❌ Response received, but missing expected hotel/evaluation data payload.");
         }
 
     } catch (error) {
