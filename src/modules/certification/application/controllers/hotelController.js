@@ -30,14 +30,17 @@ export const createHotel = asyncHandler(async (req, res) => {
     // 2. Process Files
     if (req.files) {
         // Legal Documents
-        if (req.files.legalDocuments && hotelData.legalDocuments) {
+        if (req.files.legalDocuments) {
+            if (!hotelData.legalDocuments) hotelData.legalDocuments = [];
             req.files.legalDocuments.forEach((file, index) => {
-                if (hotelData.legalDocuments[index]) {
-                    hotelData.legalDocuments[index].file = {
-                        data: file.buffer,
-                        contentType: file.mimetype
-                    };
+                const docName = file.originalname || `Document ${index + 1}`;
+                if (!hotelData.legalDocuments[index]) {
+                    hotelData.legalDocuments.push({ documentName: docName });
                 }
+                hotelData.legalDocuments[index].file = {
+                    data: file.buffer,
+                    contentType: file.mimetype
+                };
             });
         }
 
@@ -157,14 +160,17 @@ export const updateHotel = asyncHandler(async (req, res) => {
 
     // 2. Process Files (similar to create)
     if (req.files) {
-        if (req.files.legalDocuments && hotelData.legalDocuments) {
+        if (req.files.legalDocuments) {
+            if (!hotelData.legalDocuments) hotelData.legalDocuments = [];
             req.files.legalDocuments.forEach((file, index) => {
-                if (hotelData.legalDocuments[index]) {
-                    hotelData.legalDocuments[index].file = {
-                        data: file.buffer,
-                        contentType: file.mimetype
-                    };
+                const docName = file.originalname || `Document ${index + 1}`;
+                if (!hotelData.legalDocuments[index]) {
+                    hotelData.legalDocuments.push({ documentName: docName });
                 }
+                hotelData.legalDocuments[index].file = {
+                    data: file.buffer,
+                    contentType: file.mimetype
+                };
             });
         }
 
