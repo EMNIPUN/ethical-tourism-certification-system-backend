@@ -1,5 +1,8 @@
 import Hotel from '../models/Hotel.js';
-import { calculateDataCompletion, calculateTotalScore } from './scoringService.js';
+import HotelRequest from '../../../../common/models/HotelRequest.js';
+import { searchHotelCandidates, evaluateHotelReviews, getGoogleMapsDetails } from './evaluationAgent.js';
+
+
 
 /**
  * hotelService.js
@@ -35,26 +38,94 @@ export const createHotel = async (data) => {
         throw error;
     }
 
-    // Initial scoring calculation (Data Completion only)
-    const dataScore = calculateDataCompletion(data);
-
     // Ensure scoring object exists
     data.scoring = {
-        dataCompletionScore: dataScore,
+        dataCompletionScore: 0,
         googleRating: 0,
         googleReviewScore: 0,
+        aiReviewJustification: '',
         auditorScore: 0,
         totalScore: 0,
         certificationLevel: 'None',
         ...data.scoring // Merge any provided scoring
     };
 
-    // Calculate initial total score (will be low without Google rating)
-    const calculatedScoring = calculateTotalScore({ scoring: data.scoring });
-    data.scoring = calculatedScoring;
+    let candidates = [];
+    try {
+        console.log("Searching for hotel candidates via AI Agent...");
+        candidates = await searchHotelCandidates({
+            name: data.businessInfo?.name,
+            address: data.businessInfo?.contact?.address,
+            type: data.businessInfo?.businessType
+        });
+        console.log("Candidate Search completed:", candidates.length, "found.");
+    } catch (err) {
+        console.error("Agent Search failed during registration:", err);
+    }
 
     const hotel = await Hotel.create(data);
-    return hotel;
+
+    return { hotel, candidates };
+};
+
+/**
+ * Confirms the hotel's Google Maps match and performs the final AI review evaluation.
+ * 
+ * @param {string} hotelId - The ID of the registered hotel.
+ * @param {string|null} placeId - The selected Google place_id, or null if none matched.
+ * @returns {Promise<Object>} Object containing the updated hotel and the new hotelRequest.
+ */
+export const confirmHotelMatch = async (hotelId, placeId) => {
+    const hotel = await Hotel.findById(hotelId);
+    if (!hotel) {
+        throw new Error("Hotel not found");
+    }
+
+    let hotelScoreStatus = 'pending';
+    let evaluationResult = null;
+
+    if (placeId) {
+        try {
+            console.log(`Evaluating reviews for place_id: ${placeId}`);
+
+            // Fetch map details automatically using placeId
+            const mapDetails = await getGoogleMapsDetails(placeId);
+            if (mapDetails) {
+                hotel.googleMapsData = {
+                    placeId: mapDetails.place_id || placeId,
+                    thumbnail: mapDetails.thumbnail,
+                    address: mapDetails.address,
+                    gps: mapDetails.gps
+                };
+            }
+
+            evaluationResult = await evaluateHotelReviews(placeId, {
+                name: hotel.businessInfo?.name,
+                address: hotel.businessInfo?.contact?.address,
+                type: hotel.businessInfo?.businessType
+            });
+
+            hotel.scoring.googleReviewScore = evaluationResult.score || 0;
+            hotel.scoring.aiReviewJustification = evaluationResult.justification || '';
+
+            await hotel.save();
+
+            hotelScoreStatus = hotel.scoring.googleReviewScore >= 60 ? 'passed' : 'failed';
+            console.log("AI Review Evaluation completed:", evaluationResult);
+        } catch (err) {
+            console.error("AI Review Evaluation failed:", err);
+            hotelScoreStatus = 'failed'; // Fail if agent crashes on found hotel
+        }
+    }
+
+    // Create the HotelRequest based on the status
+    const hotelRequest = await HotelRequest.create({
+        hotelId: hotel._id,
+        hotelScore: { status: hotelScoreStatus },
+        auditScore: { status: 'pending' } // Audit happens later
+    });
+
+    return { hotel, hotelRequest, evaluationResult };
 };
 
 /**
@@ -128,28 +199,7 @@ export const updateHotelById = async (id, data) => {
     // Update fields
     Object.assign(hotel, data);
 
-    // Fetch Google Rating if needed (e.g. if name/address changed or explicitly requested)
-    if (data.businessInfo) {
-        const { rating, token } = await fetchGoogleRating(hotel);
-        if (rating !== null) {
-            hotel.scoring = hotel.scoring || {};
-            hotel.scoring.googleRating = rating;
-        }
-        if (token) {
-            hotel.businessInfo.serpApiPropertyToken = token;
-        }
-    }
 
-    // Recalculate scoring
-    const hotelObj = hotel.toObject();
-    const dataScore = calculateDataCompletion(hotelObj);
-
-    if (!hotel.scoring) hotel.scoring = {};
-    hotel.scoring.dataCompletionScore = dataScore;
-    hotelObj.scoring = hotel.scoring;
-
-    const calculatedScoring = calculateTotalScore(hotelObj);
-    hotel.scoring = calculatedScoring;
 
     await hotel.save();
     return hotel;
@@ -162,5 +212,8 @@ export const updateHotelById = async (id, data) => {
  * @returns {Promise<void>} Resolves when deletion is complete.
  */
 export const deleteHotelById = async (id) => {
+    // Note: We use deleteOne or findByIdAndDelete for the Hotel
+    // and deleteMany for associated requests
     await Hotel.findByIdAndDelete(id);
+    await HotelRequest.deleteMany({ hotelId: id });
 };

@@ -1,7 +1,4 @@
 import * as hotelService from '../services/hotelService.js';
-import MatchLog from "../models/MatchLog.js";
-import * as ratingService from '../services/ratingService.js';
-import * as verificationService from '../services/verificationService.js';
 import asyncHandler from '../../../../common/utils/asyncHandler.js';
 
 /**
@@ -21,58 +18,100 @@ import asyncHandler from '../../../../common/utils/asyncHandler.js';
  * @returns {Promise<void>}
  */
 export const createHotel = asyncHandler(async (req, res) => {
-    const hotel = await hotelService.createHotel(req.body);
+    // 1. Parse JSON data from form-data
+    let hotelData;
+    try {
+        hotelData = req.body.hotelData ? JSON.parse(req.body.hotelData) : req.body;
+    } catch (err) {
+        res.status(400);
+        throw new Error("Invalid JSON format in hotelData field.");
+    }
 
-    // Use enhanced matching logic
-    const { match, candidates } = await ratingService.findBestMatch(hotel);
+    // 2. Process Files
+    if (req.files) {
+        // Legal Documents
+        if (req.files.legalDocuments) {
+            if (!hotelData.legalDocuments) hotelData.legalDocuments = [];
+            req.files.legalDocuments.forEach((file, index) => {
+                const docName = file.originalname || `Document ${index + 1}`;
+                if (!hotelData.legalDocuments[index]) {
+                    hotelData.legalDocuments.push({ documentName: docName });
+                }
+                hotelData.legalDocuments[index].file = {
+                    data: file.buffer,
+                    contentType: file.mimetype
+                };
+            });
+        }
 
-    // Create MatchLog entry
-    const matchLog = new MatchLog({
-        hotelId: hotel._id,
-        hotelName: hotel.businessInfo.name,
-        searchQuery: `${hotel.businessInfo.name} ${hotel.businessInfo.contact.address}`,
-        matchFound: !!match || candidates.length > 0,
-        autoMatched: false, // Always false now as we require manual confirmation
-        matchScore: match ? match.matchScore : (candidates.length > 0 ? candidates[0].matchScore : 0),
-        candidatesCount: candidates.length,
-        candidates: candidates.map(c => ({
-            name: c.name,
-            address: c.address,
-            score: c.matchScore,
-            token: c.token,
-            matchLogs: c.matchLogs // Debugging
-        }))
-    });
-    await matchLog.save();
+        // Employee Evidence
+        if (!hotelData.employeePractices) hotelData.employeePractices = {};
+        if (!hotelData.employeePractices.evidence) hotelData.employeePractices.evidence = {};
 
-    // Always return 202 Created (Accepted) with candidates for manual confirmation
-    // We do NOT save the match automatically anymore.
-    res.status(202).json({
+        if (req.files.salarySlips?.[0]) {
+            hotelData.employeePractices.evidence.salarySlips = {
+                data: req.files.salarySlips[0].buffer,
+                contentType: req.files.salarySlips[0].mimetype
+            };
+        }
+        if (req.files.staffHandbook?.[0]) {
+            hotelData.employeePractices.evidence.staffHandbook = {
+                data: req.files.staffHandbook[0].buffer,
+                contentType: req.files.staffHandbook[0].mimetype
+            };
+        }
+        if (req.files.hrPolicy?.[0]) {
+            hotelData.employeePractices.evidence.hrPolicy = {
+                data: req.files.hrPolicy[0].buffer,
+                contentType: req.files.hrPolicy[0].mimetype
+            };
+        }
+    }
+
+    const { hotel, candidates } = await hotelService.createHotel(hotelData);
+
+    res.status(201).json({
         success: true,
+        message: "Hotel created successfully. Please confirm the matching Google Business profile.",
         data: {
-            _id: hotel._id,
-            name: hotel.businessInfo.name,
-            address: hotel.businessInfo.contact.address
+            hotelId: hotel._id,
+            candidates: candidates
+        }
+    });
+});
+
+/**
+ * Step 2: Confirms a hotel match and evaluates reviews.
+ * 
+ * @description
+ * Handles POST requests to `/api/hotels/:id/confirm-match`.
+ * Expects { placeId: "..." } or { placeId: null } in req.body.
+ */
+export const confirmMatch = asyncHandler(async (req, res) => {
+    const { placeId } = req.body;
+    const { id: hotelId } = req.params;
+
+    const { hotel, hotelRequest } = await hotelService.confirmHotelMatch(hotelId, placeId);
+
+    const hasPassed = hotelRequest.hotelScore.status === 'passed';
+    const message = hotelRequest.hotelScore.status === 'pending'
+        ? "No Google Business profile selected. Evaluation is pending manual review."
+        : hasPassed
+            ? "Match confirmed! The AI evaluation passed the initial ethical check."
+            : "Match confirmed, but the AI evaluation scored below the minimum threshold. Manual review may be required.";
+
+    res.status(200).json({
+        success: true,
+        message: message,
+        evaluation: {
+            status: hotelRequest.hotelScore.status,
+            aiScore: hotel.scoring.googleReviewScore,
+            aiJustification: hotel.scoring.aiReviewJustification
         },
-        // We provide the "best match" as the first suggestion if available
-        suggestedMatch: match ? {
-            name: match.name,
-            address: match.address || match.vicinity,
-            rating: match.overall_rating,
-            token: match.property_token,
-            thumbnail: match.thumbnail,
-            matchScore: match.matchScore,
-            matchLogs: match.matchLogs
-        } : null,
-        candidates: candidates.map(c => ({
-            name: c.name,
-            address: c.address,
-            matchScore: c.matchScore,
-            matchLogs: c.matchLogs,
-            token: c.token, // Ensure frontend has token to confirm
-            thumbnail: c.thumbnail
-        })),
-        message: "Hotel created. Please confirm the correct Google Maps listing."
+        data: {
+            hotel,
+            hotelRequest
+        }
     });
 });
 
@@ -110,7 +149,57 @@ export const getHotel = asyncHandler(async (req, res) => {
  * Handles PUT requests to `/api/hotels/:id`.
  */
 export const updateHotel = asyncHandler(async (req, res) => {
-    const hotel = await hotelService.updateHotelById(req.params.id, req.body);
+    // 1. Parse JSON data from form-data
+    let hotelData;
+    try {
+        hotelData = req.body.hotelData ? JSON.parse(req.body.hotelData) : req.body;
+    } catch (err) {
+        res.status(400);
+        throw new Error("Invalid JSON format in hotelData field.");
+    }
+
+    // 2. Process Files (similar to create)
+    if (req.files) {
+        if (req.files.legalDocuments) {
+            if (!hotelData.legalDocuments) hotelData.legalDocuments = [];
+            req.files.legalDocuments.forEach((file, index) => {
+                const docName = file.originalname || `Document ${index + 1}`;
+                if (!hotelData.legalDocuments[index]) {
+                    hotelData.legalDocuments.push({ documentName: docName });
+                }
+                hotelData.legalDocuments[index].file = {
+                    data: file.buffer,
+                    contentType: file.mimetype
+                };
+            });
+        }
+
+        if (req.files.salarySlips || req.files.staffHandbook || req.files.hrPolicy) {
+            if (!hotelData.employeePractices) hotelData.employeePractices = {};
+            if (!hotelData.employeePractices.evidence) hotelData.employeePractices.evidence = {};
+
+            if (req.files.salarySlips?.[0]) {
+                hotelData.employeePractices.evidence.salarySlips = {
+                    data: req.files.salarySlips[0].buffer,
+                    contentType: req.files.salarySlips[0].mimetype
+                };
+            }
+            if (req.files.staffHandbook?.[0]) {
+                hotelData.employeePractices.evidence.staffHandbook = {
+                    data: req.files.staffHandbook[0].buffer,
+                    contentType: req.files.staffHandbook[0].mimetype
+                };
+            }
+            if (req.files.hrPolicy?.[0]) {
+                hotelData.employeePractices.evidence.hrPolicy = {
+                    data: req.files.hrPolicy[0].buffer,
+                    contentType: req.files.hrPolicy[0].mimetype
+                };
+            }
+        }
+    }
+
+    const hotel = await hotelService.updateHotelById(req.params.id, hotelData);
     if (!hotel) {
         res.status(404);
         throw new Error('Hotel not found');
@@ -134,11 +223,3 @@ export const deleteHotel = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true, data: {} });
 });
 
-/**
- * Confirms a hotel match and updates scores.
- */
-export const confirmMatch = asyncHandler(async (req, res) => {
-    const { property_token } = req.body;
-    const hotel = await verificationService.confirmHotelMatch(req.params.id, property_token);
-    res.status(200).json({ success: true, data: hotel });
-});
