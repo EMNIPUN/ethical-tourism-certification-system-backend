@@ -397,7 +397,7 @@ export const revokeCertificate = async (certificateId, reason) => {
  *   - Renewal Count   10% (capped at 5 renewals, sourced from certificate)
  *   - Certificate Age 10% (capped at 24 months, sourced from certificate)
  *
- * If the resulting score falls below REVOKE_THRESHOLD (60), the certificate is
+ * If the resulting score falls below REVOKE_THRESHOLD (50), the certificate is
  * automatically revoked and the hotel is notified by email.
  *
  * @param {string} hotelId - The hotel's ObjectId.

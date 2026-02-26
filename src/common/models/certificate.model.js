@@ -17,12 +17,12 @@ export const CERTIFICATE_LEVEL = {
 export const TRUST_SCORE = {
    MIN: 0,
    MAX: 100,
-   DEFAULT: 85,
+   DEFAULT: 70,
    RENEWAL_BONUS: 5,
-   REVOKE_THRESHOLD: 60,
+   REVOKE_THRESHOLD: 50,
    PLATINUM_MIN: 90,
    GOLD_MIN: 75,
-   SILVER_MIN: 60,
+   SILVER_MIN: 50,
 };
 
 const CertificateSchema = new mongoose.Schema(
