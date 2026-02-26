@@ -64,3 +64,18 @@ export const inactivateCertificateSchema = Joi.object({
       "any.required": "reason is required and must be a string",
    }),
 });
+
+export const updateCertificateTrustScoreSchema = Joi.object({
+   averageRating: Joi.number().min(0).max(5).required().messages({
+      "number.base": "averageRating must be a number",
+      "number.min": "averageRating must be between 0 and 5",
+      "number.max": "averageRating must be between 0 and 5",
+      "any.required": "averageRating is required",
+   }),
+   reviewCount: Joi.number().integer().min(0).required().messages({
+      "number.base": "reviewCount must be a number",
+      "number.integer": "reviewCount must be an integer",
+      "number.min": "reviewCount must be 0 or greater",
+      "any.required": "reviewCount is required",
+   }),
+});

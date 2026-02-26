@@ -8,20 +8,13 @@ dotenv.config();
  */
 
 const errorHandler = (err, req, res, next) => {
-    let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-    let message = err.message;
-
-    // Handle Multer Errors
-    if (err.name === 'MulterError') {
-        statusCode = 400;
-        if (err.code === 'LIMIT_FILE_SIZE') {
-            message = 'File too large. Maximum size allowed is 15MB.';
-        }
-    }
+    const statusCode = err.statusCode || (res.statusCode === 200 ? 500 : res.statusCode);
+    const method = req?.method || 'UNKNOWN_METHOD';
+    const path = req?.originalUrl || req?.url || 'UNKNOWN_PATH';
 
     // Log error for server-side debugging
-    console.error(`Error: ${message}`);
-    if (process.env.NODE_ENV === 'development' && err.stack) {
+    console.error(`[ERROR] ${method} ${path} | ${statusCode} | ${err.message}`);
+    if (process.env.NODE_ENV === 'development') {
         console.error(err.stack);
     }
 
