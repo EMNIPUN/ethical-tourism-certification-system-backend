@@ -1,16 +1,28 @@
 import Certificate from '../../../common/models/certificate.model.js';
 import Feedback from '../models/Feedback.js';
 
+const LOG_PREFIX = '[search][hotelComprehensiveAIService]';
+
+const createServiceError = (message, statusCode = 500) => {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+};
+
 /**
  * Get comprehensive AI recommendations for all hotels
  * Analyzes all feedbacks across hotels and returns ranked recommendations
  */
 export const getAIHotelRecommendations = async () => {
     try {
+        console.info(`${LOG_PREFIX} Starting comprehensive AI recommendation flow`);
+
         // 1. Fetch all active certificates with hotel data
         const certificates = await Certificate.find({ status: 'ACTIVE' })
             .populate('hotelId', 'businessInfo guestServices scoring')
             .lean();
+
+        console.info(`${LOG_PREFIX} Active certificates fetched: ${certificates.length}`);
 
         // 2. For each hotel, collect feedbacks and scores
         const hotelAnalysisData = await Promise.all(
@@ -48,7 +60,10 @@ export const getAIHotelRecommendations = async () => {
 
         const validHotels = hotelAnalysisData.filter((h) => h !== null);
 
+        console.info(`${LOG_PREFIX} Valid hotels for analysis: ${validHotels.length}`);
+
         if (validHotels.length === 0) {
+            console.warn(`${LOG_PREFIX} No certified hotels found for recommendation`);
             return {
                 bestHotel: null,
                 topHotels: [],
@@ -76,11 +91,22 @@ export const getAIHotelRecommendations = async () => {
         // 5. Send to OpenAI for comprehensive analysis and ranking
         const aiRanking = await getAIRankedRecommendations(hotelsSummary, scoreRankedHotels);
 
+        console.info(
+            `${LOG_PREFIX} AI ranking received | rankedIds=${aiRanking?.rankedHotelIds?.length || 0}`
+        );
+
         // 6. Merge AI ranking with deterministic score ranking
         const rankedHotels = applyAIRanking(scoreRankedHotels, aiRanking.rankedHotelIds);
 
         // 7. Get best hotel
         const bestHotel = rankedHotels[0];
+
+        console.info(
+            `${LOG_PREFIX} Recommendation completed | bestHotel=${bestHotel?.hotelName || 'N/A'} topHotels=${Math.min(
+                rankedHotels.length,
+                5
+            )}`
+        );
 
         return {
             bestHotel: bestHotel ? {
@@ -118,8 +144,8 @@ export const getAIHotelRecommendations = async () => {
             totalCertifiedHotels: validHotels.length,
         };
     } catch (error) {
-        console.error('Error in getAIHotelRecommendations:', error);
-        throw error;
+        console.error(`${LOG_PREFIX} Error in getAIHotelRecommendations:`, error);
+        throw createServiceError('Failed to generate AI hotel recommendations');
     }
 };
 
@@ -130,6 +156,7 @@ const getAIRankedRecommendations = async (hotelsSummary, validHotels) => {
     try {
         const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) {
+            console.warn(`${LOG_PREFIX} OPENAI_API_KEY missing, using fallback ranking`);
             return getFallbackRanking(validHotels);
         }
 
@@ -168,6 +195,7 @@ const getAIRankedRecommendations = async (hotelsSummary, validHotels) => {
         const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
         const analysis = jsonMatch ? parseJsonSafely(jsonMatch[0]) : null;
         if (!analysis) {
+            console.warn(`${LOG_PREFIX} AI response JSON parsing failed, using fallback ranking`);
             return getFallbackRanking(validHotels);
         }
 
@@ -182,7 +210,7 @@ const getAIRankedRecommendations = async (hotelsSummary, validHotels) => {
             rankedHotelIds,
         };
     } catch (error) {
-        console.error('Error calling OpenAI:', error);
+        console.error(`${LOG_PREFIX} Error calling OpenAI:`, error);
         return getFallbackRanking(validHotels);
     }
 };

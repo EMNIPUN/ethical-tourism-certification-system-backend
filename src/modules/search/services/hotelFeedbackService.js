@@ -2,6 +2,8 @@ import Hotel from "../../certification/application/models/Hotel.js";
 import Feedback from "../models/Feedback.js";
 import { updateCertificateTrustScore } from "../../certification/lifecycle/services/lifecycleService.js";
 
+const LOG_PREFIX = "[search][hotelFeedbackService]";
+
 const getReviewSummary = async (hotelId) => {
    const feedbacks = await Feedback.find({ hotelId });
    const reviewCount = feedbacks.length;
@@ -27,18 +29,23 @@ const updateHotelAverageRating = async (hotelId, averageRating) => {
 };
 
 export const getHotelFeedbackById = async (hotelId) => {
+   console.info(`${LOG_PREFIX} getHotelFeedbackById started | hotelId=${hotelId}`);
+
    const hotel = await Hotel.findById(hotelId, {
       _id: 1,
       "businessInfo.name": 1,
       "guestServices.experience.averageRating": 1,
    }).lean();
 
-   if (!hotel) return null;
+   if (!hotel) {
+      console.info(`${LOG_PREFIX} getHotelFeedbackById completed | hotelId=${hotelId} found=false`);
+      return null;
+   }
 
    const { feedbacks, reviewCount, averageRating } =
       await getReviewSummary(hotelId);
 
-   return {
+   const result = {
       hotelId: hotel._id,
       hotelName: hotel.businessInfo?.name,
       averageRating:
@@ -54,9 +61,17 @@ export const getHotelFeedbackById = async (hotelId) => {
          updatedAt: item.updatedAt,
       })),
    };
+
+   console.info(
+      `${LOG_PREFIX} getHotelFeedbackById completed | hotelId=${hotelId} reviewCount=${result.reviewCount}`,
+   );
+
+   return result;
 };
 
 export const addFeedbackToHotel = async (hotelId, user, payload) => {
+   console.info(`${LOG_PREFIX} addFeedbackToHotel started | hotelId=${hotelId} userId=${user?._id}`);
+
    const hotel = await Hotel.findById(hotelId);
    if (!hotel) return null;
 
@@ -71,7 +86,7 @@ export const addFeedbackToHotel = async (hotelId, user, payload) => {
    const { reviewCount, averageRating } = await getReviewSummary(hotelId);
    await updateHotelAverageRating(hotelId, averageRating);
 
-   return {
+   const result = {
       feedback: {
          feedbackId: newFeedback._id,
          userId: newFeedback.userId,
@@ -84,6 +99,12 @@ export const addFeedbackToHotel = async (hotelId, user, payload) => {
       reviewCount,
       averageRating,
    };
+
+   console.info(
+      `${LOG_PREFIX} addFeedbackToHotel completed | hotelId=${hotelId} reviewCount=${result.reviewCount}`,
+   );
+
+   return result;
 };
 
 export const updateHotelFeedback = async (
@@ -93,6 +114,10 @@ export const updateHotelFeedback = async (
    payload,
    isAdmin,
 ) => {
+   console.info(
+      `${LOG_PREFIX} updateHotelFeedback started | hotelId=${hotelId} feedbackId=${feedbackId} userId=${user?._id} isAdmin=${isAdmin}`,
+   );
+
    const hotel = await Hotel.findById(hotelId);
    if (!hotel) return { notFound: "hotel" };
 
@@ -120,7 +145,7 @@ export const updateHotelFeedback = async (
    const { reviewCount, averageRating } = await getReviewSummary(hotelId);
    await updateHotelAverageRating(hotelId, averageRating);
 
-   return {
+   const result = {
       feedback: {
          feedbackId: existing._id,
          userId: existing.userId,
@@ -133,6 +158,12 @@ export const updateHotelFeedback = async (
       reviewCount,
       averageRating,
    };
+
+   console.info(
+      `${LOG_PREFIX} updateHotelFeedback completed | hotelId=${hotelId} feedbackId=${feedbackId} reviewCount=${result.reviewCount}`,
+   );
+
+   return result;
 };
 
 /**
@@ -146,6 +177,8 @@ export const updateHotelFeedback = async (
  * @returns {Promise<Object|null>} The feedback result, or null if hotel not found.
  */
 export const addFeedbackAndSyncCertificate = async (hotelId, user, payload) => {
+   console.info(`${LOG_PREFIX} addFeedbackAndSyncCertificate started | hotelId=${hotelId} userId=${user?._id}`);
+
    const result = await addFeedbackToHotel(hotelId, user, payload);
    if (!result) return null;
 
@@ -156,6 +189,9 @@ export const addFeedbackAndSyncCertificate = async (hotelId, user, payload) => {
          result.averageRating,
          result.reviewCount,
       );
+      console.info(
+         `${LOG_PREFIX} addFeedbackAndSyncCertificate trust sync completed | hotelId=${hotelId} reviewCount=${result.reviewCount}`,
+      );
    } catch (err) {
       if (process.env.NODE_ENV === "development") {
          console.warn(
@@ -163,6 +199,8 @@ export const addFeedbackAndSyncCertificate = async (hotelId, user, payload) => {
          );
       }
    }
+
+   console.info(`${LOG_PREFIX} addFeedbackAndSyncCertificate completed | hotelId=${hotelId}`);
 
    return result;
 };
@@ -173,6 +211,10 @@ export const deleteHotelFeedback = async (
    user,
    isAdmin,
 ) => {
+   console.info(
+      `${LOG_PREFIX} deleteHotelFeedback started | hotelId=${hotelId} feedbackId=${feedbackId} userId=${user?._id} isAdmin=${isAdmin}`,
+   );
+
    const hotel = await Hotel.findById(hotelId);
    if (!hotel) return { notFound: "hotel" };
 
@@ -192,5 +234,11 @@ export const deleteHotelFeedback = async (
    const { reviewCount, averageRating } = await getReviewSummary(hotelId);
    await updateHotelAverageRating(hotelId, averageRating);
 
-   return { reviewCount, averageRating };
+   const result = { reviewCount, averageRating };
+
+   console.info(
+      `${LOG_PREFIX} deleteHotelFeedback completed | hotelId=${hotelId} feedbackId=${feedbackId} reviewCount=${result.reviewCount}`,
+   );
+
+   return result;
 };

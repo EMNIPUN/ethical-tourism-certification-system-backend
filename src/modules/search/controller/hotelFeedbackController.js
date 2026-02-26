@@ -2,6 +2,8 @@ import asyncHandler from "../../../common/utils/asyncHandler.js";
 import * as hotelFeedbackService from "../services/hotelFeedbackService.js";
 
 export const getHotelFeedback = asyncHandler(async (req, res) => {
+   console.info(`[search][getHotelFeedback] Request received | hotelId=${req.params.id}`);
+
    const feedbackSection = await hotelFeedbackService.getHotelFeedbackById(
       req.params.id,
    );
@@ -11,6 +13,10 @@ export const getHotelFeedback = asyncHandler(async (req, res) => {
       throw new Error("Hotel not found");
    }
 
+   console.info(
+      `[search][getHotelFeedback] Completed | hotelId=${req.params.id} reviewCount=${feedbackSection.reviewCount}`,
+   );
+
    res.status(200).json({
       success: true,
       data: feedbackSection,
@@ -18,6 +24,10 @@ export const getHotelFeedback = asyncHandler(async (req, res) => {
 });
 
 export const addHotelFeedback = asyncHandler(async (req, res) => {
+   console.info(
+      `[search][addHotelFeedback] Request received | hotelId=${req.params.id} userId=${req.user?._id}`,
+   );
+
    const created = await hotelFeedbackService.addFeedbackToHotel(
       req.params.id,
       req.user,
@@ -28,6 +38,10 @@ export const addHotelFeedback = asyncHandler(async (req, res) => {
       res.status(404);
       throw new Error("Hotel not found");
    }
+
+    console.info(
+      `[search][addHotelFeedback] Completed | hotelId=${req.params.id} reviewCount=${created.reviewCount}`,
+   );
 
    res.status(201).json({
       success: true,
@@ -40,6 +54,10 @@ export const addHotelFeedback = asyncHandler(async (req, res) => {
 });
 
 export const updateHotelFeedback = asyncHandler(async (req, res) => {
+   console.info(
+      `[search][updateHotelFeedback] Request received | hotelId=${req.params.id} feedbackId=${req.params.feedbackId} userId=${req.user?._id}`,
+   );
+
    const result = await hotelFeedbackService.updateHotelFeedback(
       req.params.id,
       req.params.feedbackId,
@@ -65,6 +83,10 @@ export const updateHotelFeedback = asyncHandler(async (req, res) => {
       });
    }
 
+   console.info(
+      `[search][updateHotelFeedback] Completed | hotelId=${req.params.id} feedbackId=${req.params.feedbackId} reviewCount=${result.reviewCount}`,
+   );
+
    res.status(200).json({
       success: true,
       data: result.feedback,
@@ -80,6 +102,10 @@ export const updateHotelFeedback = asyncHandler(async (req, res) => {
  * POST /hotels-search/contacts/:id/feedback
  */
 export const addHotelFeedbackWithTrustSync = asyncHandler(async (req, res) => {
+   console.info(
+      `[search][addHotelFeedbackWithTrustSync] Request received | hotelId=${req.params.id} userId=${req.user?._id}`,
+   );
+
    const created = await hotelFeedbackService.addFeedbackAndSyncCertificate(
       req.params.id,
       req.user,
@@ -90,6 +116,10 @@ export const addHotelFeedbackWithTrustSync = asyncHandler(async (req, res) => {
       res.status(404);
       throw new Error("Hotel not found");
    }
+
+   console.info(
+      `[search][addHotelFeedbackWithTrustSync] Completed | hotelId=${req.params.id} reviewCount=${created.reviewCount}`,
+   );
 
    res.status(201).json({
       success: true,
@@ -102,6 +132,10 @@ export const addHotelFeedbackWithTrustSync = asyncHandler(async (req, res) => {
 });
 
 export const deleteHotelFeedback = asyncHandler(async (req, res) => {
+   console.info(
+      `[search][deleteHotelFeedback] Request received | hotelId=${req.params.id} feedbackId=${req.params.feedbackId} userId=${req.user?._id}`,
+   );
+
    const result = await hotelFeedbackService.deleteHotelFeedback(
       req.params.id,
       req.params.feedbackId,
@@ -125,6 +159,10 @@ export const deleteHotelFeedback = asyncHandler(async (req, res) => {
          error: "Not authorized to delete this feedback",
       });
    }
+
+   console.info(
+      `[search][deleteHotelFeedback] Completed | hotelId=${req.params.id} feedbackId=${req.params.feedbackId} reviewCount=${result.reviewCount}`,
+   );
 
    res.status(200).json({
       success: true,

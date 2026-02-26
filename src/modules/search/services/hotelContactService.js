@@ -1,6 +1,8 @@
 import Certificate from '../../../common/models/certificate.model.js';
 import Feedback from '../models/Feedback.js';
 
+const LOG_PREFIX = '[search][hotelContactService]';
+
 const CERTIFICATE_LEVEL_PRIORITY = {
     PLATINUM: 1,
     GOLD: 2,
@@ -95,6 +97,8 @@ const toHotelContactResponse = (hotel, certificate, feedbackSummary) => ({
 });
 
 export const getAllHotelContactDetails = async () => {
+    console.info(`${LOG_PREFIX} getAllHotelContactDetails started`);
+
     const certificates = await Certificate.find({ status: 'ACTIVE' })
         .populate('hotelId')
         .sort('-createdAt')
@@ -111,10 +115,15 @@ export const getAllHotelContactDetails = async () => {
         return toHotelContactResponse(certificate.hotelId, certificate, feedbackSummary);
     });
 
-    return results.sort(sortByCertificateLevelPriority);
+    const sortedResults = results.sort(sortByCertificateLevelPriority);
+    console.info(`${LOG_PREFIX} getAllHotelContactDetails completed | count=${sortedResults.length}`);
+
+    return sortedResults;
 };
 
 export const getHotelContactDetailsById = async (id) => {
+    console.info(`${LOG_PREFIX} getHotelContactDetailsById started | hotelId=${id}`);
+
     const certificate = await Certificate.findOne({
         status: 'ACTIVE',
         hotelId: id,
@@ -122,16 +131,23 @@ export const getHotelContactDetailsById = async (id) => {
         .populate('hotelId')
         .lean();
 
-    if (!certificate?.hotelId) return null;
+    if (!certificate?.hotelId) {
+        console.info(`${LOG_PREFIX} getHotelContactDetailsById completed | hotelId=${id} found=false`);
+        return null;
+    }
 
     const feedbackSummaryMap = await buildFeedbackSummaryMap([certificate.hotelId._id]);
     const feedbackSummary = feedbackSummaryMap.get(String(certificate.hotelId._id));
+
+    console.info(`${LOG_PREFIX} getHotelContactDetailsById completed | hotelId=${id} found=true`);
 
     return toHotelContactResponse(certificate.hotelId, certificate, feedbackSummary);
 };
 
 export const searchHotelContactsByLocation = async (location) => {
     const normalizedLocation = location.trim().toLowerCase();
+
+    console.info(`${LOG_PREFIX} searchHotelContactsByLocation started | location=${normalizedLocation}`);
 
     const certificates = await Certificate.find({ status: 'ACTIVE' })
         .populate({
@@ -157,5 +173,10 @@ export const searchHotelContactsByLocation = async (location) => {
         return toHotelContactResponse(certificate.hotelId, certificate, feedbackSummary);
     });
 
-    return results.sort(sortByCertificateLevelPriority);
+    const sortedResults = results.sort(sortByCertificateLevelPriority);
+    console.info(
+        `${LOG_PREFIX} searchHotelContactsByLocation completed | location=${normalizedLocation} count=${sortedResults.length}`
+    );
+
+    return sortedResults;
 };
