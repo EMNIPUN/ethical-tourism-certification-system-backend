@@ -1,4 +1,5 @@
 import swaggerJsdoc from "swagger-jsdoc";
+const PORT = process.env.PORT || 5000;
 
 const options = {
    definition: {
@@ -11,7 +12,7 @@ const options = {
       },
       servers: [
          {
-            url: "http://localhost:5000/api/v1",
+            url: `http://localhost:${PORT}/api/v1`,
             description: "Development server",
          },
       ],
@@ -43,7 +44,7 @@ const options = {
          {
             name: "Public Certification Verification & Discovery",
             description:
-               "Public search and contact endpoints for certification verification and discovery.",
+               "Public search and contact endpoints for certification verification and discovery. Includes hotel contact details and tourist feedback/review sections.",
          },
       ],
    },

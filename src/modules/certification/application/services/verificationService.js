@@ -1,4 +1,4 @@
-import Hotel from '../../../../common/models/Hotel.js';
+import Hotel from '../models/Hotel.js';
 import * as ratingService from './ratingService.js';
 import { calculateTotalScore } from './scoringService.js';
 

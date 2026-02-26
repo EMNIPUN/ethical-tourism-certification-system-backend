@@ -2,6 +2,7 @@ import express from "express";
 import {
    getHotelContactDetails,
    getHotelContactDetailById,
+   searchHotelContactsByLocation,
 } from "../controller/hotelContactController.js";
 import {
    protect,
@@ -49,6 +50,52 @@ router.get(
    protect,
    authorize("Admin", "Hotel Owner", "Auditor", "Tourist"),
    getHotelContactDetails,
+);
+
+/**
+ * @swagger
+ * /hotels-search/contacts/search:
+ *   get:
+ *     summary: Search hotel contacts by location and sort by certificate level priority
+ *     description: Returns hotels filtered by address/location text and ordered as PLATINUM, GOLD, SILVER.
+ *     tags: [Public Certification Verification & Discovery]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: location
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Location text to search within hotel address (city, district, area)
+ *     responses:
+ *       200:
+ *         description: Filtered hotel contact details sorted by certificate level priority
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 count:
+ *                   type: integer
+ *                 location:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/HotelContactInfo'
+ *       400:
+ *         description: Location query is required
+ *       401:
+ *         description: Not authorized
+ */
+router.get(
+   "/contacts/search",
+   protect,
+   authorize("Admin", "Hotel Owner", "Auditor", "Tourist"),
+   searchHotelContactsByLocation,
 );
 
 /**
