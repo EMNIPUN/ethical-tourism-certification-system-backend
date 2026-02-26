@@ -30,6 +30,32 @@ const router = express.Router();
  *     tags: [Certification Application Management]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Number of results per page
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *         description: Sort results by field. Use '-' for descending (e.g., '-scoring.googleReviewScore,createdAt')
+ *       - in: query
+ *         name: fields
+ *         schema:
+ *           type: string
+ *         description: Comma-separated list of fields to include in the response (e.g., 'businessInfo.name,scoring.certificationLevel')
+ *       - in: query
+ *         name: "[field]"
+ *         schema:
+ *           type: string
+ *         description: Dynamically filter by any schema field. Supports exact match (e.g., `businessInfo.businessType=Hotel`) and operators `[gt]`, `[gte]`, `[lt]`, `[lte]` (e.g., `scoring.googleReviewScore[gte]=80`).
  *     responses:
  *       200:
  *         description: A list of hotels

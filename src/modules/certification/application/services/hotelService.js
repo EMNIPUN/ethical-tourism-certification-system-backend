@@ -212,5 +212,8 @@ export const updateHotelById = async (id, data) => {
  * @returns {Promise<void>} Resolves when deletion is complete.
  */
 export const deleteHotelById = async (id) => {
+    // Note: We use deleteOne or findByIdAndDelete for the Hotel
+    // and deleteMany for associated requests
     await Hotel.findByIdAndDelete(id);
+    await HotelRequest.deleteMany({ hotelId: id });
 };
