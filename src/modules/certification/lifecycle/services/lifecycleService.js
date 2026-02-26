@@ -121,6 +121,33 @@ export const issueCertificate = async (hotelId, validityPeriodInMonths) => {
       throw error;
    }
 
+   // Check hotel eligibility — both hotelScore and auditScore must be 'passed'
+   const hotelRequest = await HotelRequest.findOne({ hotelId });
+   if (!hotelRequest) {
+      const error = new Error(
+         "No hotel request found for this hotel. The hotel must complete the evaluation process before a certificate can be issued.",
+      );
+      error.statusCode = 400;
+      throw error;
+   }
+
+   if (
+      hotelRequest.hotelScore?.status !== "passed" ||
+      hotelRequest.auditScore?.status !== "passed"
+   ) {
+      const failedScores = [];
+      if (hotelRequest.hotelScore?.status !== "passed")
+         failedScores.push("Hotel Score");
+      if (hotelRequest.auditScore?.status !== "passed")
+         failedScores.push("Audit Score");
+
+      const error = new Error(
+         `Hotel is not eligible for certification. The following scores have not passed: ${failedScores.join(", ")}.`,
+      );
+      error.statusCode = 400;
+      throw error;
+   }
+
    const issuedDate = new Date();
    const expiryDate = new Date(issuedDate);
    expiryDate.setMonth(expiryDate.getMonth() + validityPeriodInMonths);
