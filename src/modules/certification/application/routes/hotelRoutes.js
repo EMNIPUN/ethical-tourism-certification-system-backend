@@ -38,7 +38,7 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/HotelListResponse'
  *   post:
- *     summary: Create a new hotel
+ *     summary: (Step 1) Create a new hotel and search candidates
  *     tags: [Certification Application Management]
  *     security:
  *       - bearerAuth: []
@@ -83,7 +83,7 @@ const router = express.Router();
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: "Hotel created successfully. Please confirm the matching Google Business profile."
+ *                   example: "Hotel created successfully. Next, call /hotels/{id}/confirm-match with the selected place_id to complete registration."
  *                 data:
  *                   type: object
  *                   properties:
@@ -223,7 +223,7 @@ router
  * @swagger
  * /hotels/{id}/confirm-match:
  *   post:
- *     summary: Confirm the Google Business profile match and score the hotel
+ *     summary: (Step 2) Confirm the Google Business profile match and score the hotel
  *     tags: [Certification Application Management]
  *     security:
  *       - bearerAuth: []
