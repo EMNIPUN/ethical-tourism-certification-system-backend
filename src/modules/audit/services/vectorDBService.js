@@ -1,52 +1,36 @@
-import { LocalIndex } from 'vectra';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs/promises';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import VectorEmbedding from '../models/VectorEmbedding.js';
+import mongoose from 'mongoose';
 
 /**
- * Vector Database Service using Vectra
- * Manages hotel-specific vector databases for RAG system
+ * Vector Database Service using MongoDB Vector Search
+ * Manages hotel-specific vector embeddings for RAG system
  */
 class VectorDBService {
     constructor() {
-        // Base directory for all vector databases
-        this.baseVectorPath = path.join(__dirname, '../../../../vector_dbs');
-        this.indexes = new Map(); // Cache for loaded indexes
+        this.collectionName = 'vectorembeddings';
     }
 
     /**
      * Get or create a vector index for a specific hotel
-     * Each hotel has its own isolated vector database
+     * Each hotel has isolated embeddings via hotelId filter
      * @param {String} hotelId - Hotel MongoDB ObjectId
-     * @returns {LocalIndex} Vector index instance
+     * @returns {Object} Helper object with hotel context
      */
     async getHotelIndex(hotelId) {
-        // Check if already loaded in cache
-        if (this.indexes.has(hotelId)) {
-            return this.indexes.get(hotelId);
-        }
-
-        // Create hotel-specific directory
-        const hotelVectorPath = path.join(this.baseVectorPath, hotelId);
-        
-        // Ensure directory exists
-        await fs.mkdir(hotelVectorPath, { recursive: true });
-
-        // Create or load index
-        const index = new LocalIndex(hotelVectorPath);
-
-        // Check if index exists, if not create it
-        if (!(await index.isIndexCreated())) {
-            await index.createIndex();
-        }
-
-        // Cache the index
-        this.indexes.set(hotelId, index);
-
-        return index;
+        // Return helper object with hotelId context
+        return {
+            hotelId,
+            insertItem: async (item) => {
+                await this.addDocuments(hotelId, [item]);
+            },
+            queryItems: async (vector, limit = 5) => {
+                return await this.search(hotelId, vector, limit);
+            },
+            isIndexCreated: async () => {
+                const count = await VectorEmbedding.countDocuments({ hotelId });
+                return count > 0;
+            }
+        };
     }
 
     /**
@@ -55,58 +39,131 @@ class VectorDBService {
      * @param {Array} items - Array of {id, text, metadata, vector}
      */
     async addDocuments(hotelId, items) {
-        const index = await this.getHotelIndex(hotelId);
+        const documents = items.map(item => ({
+            hotelId,
+            embedding: item.vector,
+            text: item.metadata?.text || item.text || '',
+            metadata: {
+                source: item.metadata?.source || 'unknown',
+                type: item.metadata?.type || 'structured_data',
+                documentId: item.id,
+                chunkIndex: item.metadata?.chunkIndex
+            }
+        }));
 
-        for (const item of items) {
-            await index.insertItem({
-                id: item.id,
-                metadata: {
-                    text: item.text,
-                    source: item.metadata?.source || 'unknown',
-                    section: item.metadata?.section || 'general',
-                    timestamp: item.metadata?.timestamp || new Date().toISOString(),
-                    ...item.metadata
-                },
-                vector: item.vector
-            });
-        }
-
-        console.log(`Added ${items.length} documents to vector DB for hotel ${hotelId}`);
+        await VectorEmbedding.insertMany(documents);
+        console.log(`Added ${items.length} documents to MongoDB vector DB for hotel ${hotelId}`);
     }
 
     /**
-     * Search for similar documents in hotel's vector database
+     * Search for similar documents using MongoDB Vector Search
      * @param {String} hotelId - Hotel ID
      * @param {Array} queryVector - Query embedding vector
      * @param {Number} topK - Number of results to return
      * @returns {Array} Similar documents with scores
      */
     async search(hotelId, queryVector, topK = 5) {
-        const index = await this.getHotelIndex(hotelId);
+        try {
+            // Use MongoDB aggregation with $vectorSearch (requires Atlas Vector Search index)
+            const results = await VectorEmbedding.aggregate([
+                {
+                    $vectorSearch: {
+                        index: "vector_index",
+                        path: "embedding",
+                        queryVector: queryVector,
+                        numCandidates: topK * 10,
+                        limit: topK,
+                        filter: {
+                            hotelId: new mongoose.Types.ObjectId(hotelId)
+                        }
+                    }
+                },
+                {
+                    $project: {
+                        text: 1,
+                        metadata: 1,
+                        score: { $meta: "vectorSearchScore" }
+                    }
+                }
+            ]);
 
-        const results = await index.queryItems(queryVector, topK);
-
-        return results.map(result => ({
-            id: result.item.id,
-            text: result.item.metadata.text,
-            metadata: result.item.metadata,
-            score: result.score
-        }));
+            return results.map(result => ({
+                item: {
+                    id: result._id,
+                    metadata: {
+                        text: result.text,
+                        ...result.metadata
+                    }
+                },
+                score: result.score
+            }));
+        } catch (error) {
+            // Fallback to cosine similarity if vector search not available
+            console.warn('Vector search index not found, using fallback cosine similarity');
+            return await this.cosineSimilaritySearch(hotelId, queryVector, topK);
+        }
     }
 
     /**
-     * Delete all documents for a hotel
+     * Fallback: Manual cosine similarity search (slower but works without vector index)
+     * @param {String} hotelId - Hotel ID
+     * @param {Array} queryVector - Query embedding vector
+     * @param {Number} topK - Number of results to return
+     * @returns {Array} Similar documents with scores
+     */
+    async cosineSimilaritySearch(hotelId, queryVector, topK = 5) {
+        const allDocs = await VectorEmbedding.find({ hotelId }).lean();
+
+        const results = allDocs.map(doc => {
+            const similarity = this.cosineSimilarity(queryVector, doc.embedding);
+            return {
+                item: {
+                    id: doc._id,
+                    metadata: {
+                        text: doc.text,
+                        ...doc.metadata
+                    }
+                },
+                score: similarity
+            };
+        });
+
+        // Sort by similarity descending
+        results.sort((a, b) => b.score - a.score);
+
+        return results.slice(0, topK);
+    }
+
+    /**
+     * Calculate cosine similarity between two vectors
+     * @param {Array} vecA - First vector
+     * @param {Array} vecB - Second vector
+     * @returns {Number} Cosine similarity score (0-1)
+     */
+    cosineSimilarity(vecA, vecB) {
+        let dotProduct = 0;
+        let normA = 0;
+        let normB = 0;
+
+        for (let i = 0; i < vecA.length; i++) {
+            dotProduct += vecA[i] * vecB[i];
+            normA += vecA[i] * vecA[i];
+            normB += vecB[i] * vecB[i];
+        }
+
+        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    /**
+     * Delete all embeddings for a hotel
      * @param {String} hotelId - Hotel ID
      */
     async deleteHotelIndex(hotelId) {
-        const hotelVectorPath = path.join(this.baseVectorPath, hotelId);
-        
         try {
-            await fs.rm(hotelVectorPath, { recursive: true, force: true });
-            this.indexes.delete(hotelId);
-            console.log(`Deleted vector DB for hotel ${hotelId}`);
+            const result = await VectorEmbedding.deleteMany({ hotelId });
+            console.log(`Deleted ${result.deletedCount} embeddings for hotel ${hotelId}`);
         } catch (error) {
-            console.error(`Error deleting vector DB for hotel ${hotelId}:`, error.message);
+            console.error(`Error deleting embeddings for hotel ${hotelId}:`, error.message);
         }
     }
 
@@ -117,19 +174,17 @@ class VectorDBService {
      * @param {Object} item - Updated item data
      */
     async updateDocument(hotelId, itemId, item) {
-        const index = await this.getHotelIndex(hotelId);
-
-        await index.deleteItem(itemId);
-        await index.insertItem({
-            id: itemId,
-            metadata: {
+        await VectorEmbedding.findOneAndUpdate(
+            { hotelId, _id: itemId },
+            {
+                embedding: item.vector,
                 text: item.text,
-                ...item.metadata
+                metadata: item.metadata
             },
-            vector: item.vector
-        });
+            { upsert: true }
+        );
 
-        console.log(`Updated document ${itemId} in vector DB for hotel ${hotelId}`);
+        console.log(`Updated document ${itemId} in MongoDB vector DB for hotel ${hotelId}`);
     }
 
     /**
@@ -138,21 +193,18 @@ class VectorDBService {
      * @returns {Object} Statistics
      */
     async getStats(hotelId) {
-        const index = await this.getHotelIndex(hotelId);
-        const hotelVectorPath = path.join(this.baseVectorPath, hotelId);
-
         try {
-            const stats = await fs.stat(hotelVectorPath);
-            // Get all items to count
-            const allItems = await index.listItems();
-            
+            const count = await VectorEmbedding.countDocuments({ hotelId });
+            const firstDoc = await VectorEmbedding.findOne({ hotelId }).sort({ createdAt: 1 });
+            const lastDoc = await VectorEmbedding.findOne({ hotelId }).sort({ createdAt: -1 });
+
             return {
                 hotelId,
-                totalDocuments: allItems.length,
-                path: hotelVectorPath,
-                created: stats.birthtime,
-                modified: stats.mtime,
-                indexExists: await index.isIndexCreated()
+                totalDocuments: count,
+                storage: 'MongoDB',
+                created: firstDoc?.createdAt,
+                modified: lastDoc?.createdAt,
+                indexExists: count > 0
             };
         } catch (error) {
             return {
@@ -164,11 +216,10 @@ class VectorDBService {
     }
 
     /**
-     * Clear cache and free memory
+     * Clear cache and free memory (not needed for MongoDB)
      */
     clearCache() {
-        this.indexes.clear();
-        console.log('Vector DB cache cleared');
+        console.log('MongoDB vector DB does not use cache');
     }
 }
 
