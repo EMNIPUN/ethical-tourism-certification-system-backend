@@ -149,20 +149,39 @@ const revokedTemplate = ({ hotelName, certificateNumber, reason }) =>
 
 // ─── Send helper ─────────────────────────────────────────────────────────────
 const send = async ({ to, subject, html }) => {
+   const payload = {
+      to,
+      from: { email: FROM_EMAIL(), name: FROM_NAME },
+      subject,
+      htmlLength: html?.length ?? 0,
+   };
+
+   // Log outgoing email data (avoid logging full HTML to keep logs concise)
+   console.info(`[EmailService] Sending email to ${to}:`, payload);
+
    try {
       sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-      await sgMail.send({
+      const res = await sgMail.send({
          to,
          from: { email: FROM_EMAIL(), name: FROM_NAME },
          subject,
          html,
       });
+
+      // SendGrid may return an array for batch responses; normalise for logging
+      const primary = Array.isArray(res) ? res[0] : res;
+      console.info(
+         `[EmailService] Sent "${subject}" to ${to} — status: ${primary?.statusCode ?? "unknown"}`,
+         { headers: primary?.headers ?? null },
+      );
+      return res;
    } catch (err) {
       // Log but never crash the main flow — email is non-critical
       console.error(
          `[EmailService] Failed to send "${subject}" to ${to}:`,
-         err?.response?.body ?? err.message,
+         err?.response?.body ?? err?.message ?? err,
       );
+      return null;
    }
 };
 
