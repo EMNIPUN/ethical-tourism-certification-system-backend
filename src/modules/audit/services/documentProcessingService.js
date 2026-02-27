@@ -1,12 +1,17 @@
-import { createRequire } from 'module';
 import mammoth from 'mammoth';
-import fs from 'fs/promises';
 import https from 'https';
 import http from 'http';
 
-// Import CommonJS module
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+// Lazy-load pdf-parse to avoid top-level crash on Vercel
+let pdfParse = null;
+async function getPdfParse() {
+    if (!pdfParse) {
+        const { createRequire } = await import('module');
+        const require = createRequire(import.meta.url);
+        pdfParse = require('pdf-parse');
+    }
+    return pdfParse;
+}
 
 /**
  * Document Processing Service
@@ -38,7 +43,8 @@ class DocumentProcessingService {
      * Extract text from PDF buffer
      */
     async extractFromPDF(buffer) {
-        const data = await pdfParse(buffer);
+        const parse = await getPdfParse();
+        const data = await parse(buffer);
         return data.text;
     }
 
