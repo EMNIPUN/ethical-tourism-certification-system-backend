@@ -32,6 +32,7 @@ export const calculateTrustScore = ({
    reviewCount,
    renewalCount,
    issuedDate,
+   baselineScore = TRUST_SCORE.DEFAULT,
 }) => {
    // Factor 1: Average Rating (60%) — normalize 0–5 scale to 0–100
    const ratingScore = (averageRating / 5) * 100;
@@ -54,7 +55,13 @@ export const calculateTrustScore = ({
       renewalScore * 0.1 +
       ageScore * 0.1;
 
-   return Math.round(clampScore(weighted));
+   const safeReviewCount = Math.max(0, Number(reviewCount) || 0);
+   const confidence =
+      safeReviewCount /
+      (safeReviewCount + TRUST_SCORE.REVIEW_CONFIDENCE_K);
+   const blended = baselineScore * (1 - confidence) + weighted * confidence;
+
+   return Math.round(clampScore(blended));
 };
 
 // --- Helper: Generate unique certificate number ---
@@ -459,11 +466,15 @@ export const updateCertificateTrustScore = async (
       reviewCount,
       renewalCount: certificate.renewalCount,
       issuedDate: certificate.issuedDate,
+      baselineScore: certificate.trustScore,
    });
 
    certificate.trustScore = newScore;
 
-   const wasAutoRevoked = newScore < TRUST_SCORE.REVOKE_THRESHOLD;
+   const canAutoRevoke =
+      reviewCount >= TRUST_SCORE.MIN_REVIEWS_FOR_REVOCATION;
+   const wasAutoRevoked =
+      canAutoRevoke && newScore < TRUST_SCORE.REVOKE_THRESHOLD;
    if (wasAutoRevoked) {
       certificate.status = CERTIFICATE_STATUS.REVOKED;
       certificate.trustScore = TRUST_SCORE.MIN;
@@ -493,8 +504,8 @@ export const updateCertificateTrustScore = async (
 export const getEligibleHotelsForCertification = async () => {
    // Find all hotel requests where both scores are passed
    const eligibleRequests = await HotelRequest.find({
-      hotelScore: "passed",
-      auditScore: "passed",
+      hotelScore: {status : "passed"},
+      auditScore: {status : "passed"},
    }).populate("hotelId");
 
    if (!eligibleRequests.length) return [];
