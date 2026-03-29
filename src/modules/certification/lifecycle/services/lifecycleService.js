@@ -310,7 +310,21 @@ export const getAllHotelsWithCertificates = async (status = null) => {
 export const getCertificateByNumber = async (certificateNumber) => {
    const certificate = await Certificate.findOne({
       certificateNumber,
-   }).populate("hotelId", "businessInfo.name businessInfo.contact.address");
+   }).populate(
+      "hotelId",
+      [
+         "businessInfo.name",
+         "businessInfo.businessType",
+         "businessInfo.yearEstablished",
+         "businessInfo.contact.ownerName",
+         "businessInfo.contact.email",
+         "businessInfo.contact.phone",
+         "businessInfo.contact.website",
+         "businessInfo.contact.address",
+         "businessInfo.contact.gps.latitude",
+         "businessInfo.contact.gps.longitude",
+      ].join(" "),
+   );
 
    if (!certificate) {
       const error = new Error("Certificate not found");
