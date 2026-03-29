@@ -9,6 +9,7 @@ import {
    revokeCertificate,
    inactivateCertificate,
    updateCertificateTrustScoreByHotel,
+   getCertificateTimeline,
 } from "../controllers/lifecycleController.js";
 import {
    protect,
@@ -107,6 +108,95 @@ const router = express.Router();
  *         error:
  *           type: string
  *           example: "Error message"
+ *     CertificateTimelineItem:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           example: "67e80a33448fce08d316d9f1"
+ *         certificateId:
+ *           type: string
+ *           example: "665f1a2b3c4d5e6f7a8b9c0d"
+ *         hotelId:
+ *           type: string
+ *           example: "665f1a2b3c4d5e6f7a8b9c0e"
+ *         eventType:
+ *           type: string
+ *           enum:
+ *             - CERTIFICATE_ISSUED
+ *             - TRUST_SCORE_UPDATED
+ *             - LEVEL_CHANGED
+ *             - STATUS_CHANGED
+ *             - CERTIFICATE_RENEWED
+ *             - CERTIFICATE_REVOKED
+ *             - CERTIFICATE_EXPIRED
+ *             - CERTIFICATE_INACTIVATED
+ *             - AUTO_REVOCATION_TRIGGERED
+ *             - FEEDBACK_SYNC_APPLIED
+ *           example: "TRUST_SCORE_UPDATED"
+ *         source:
+ *           type: string
+ *           enum: [API, SYSTEM, FEEDBACK_SYNC]
+ *           example: "API"
+ *         actorType:
+ *           type: string
+ *           enum: [SYSTEM, USER]
+ *           example: "USER"
+ *         actorId:
+ *           type: string
+ *           nullable: true
+ *           example: "67e7fdf4ad50153a9da14d6b"
+ *         summary:
+ *           type: string
+ *           example: "Trust score recalculated from feedback"
+ *         changes:
+ *           type: object
+ *           additionalProperties: true
+ *           description: Before and after snapshots for changed fields
+ *         metadata:
+ *           type: object
+ *           additionalProperties: true
+ *           description: Additional context for the event
+ *         eventTime:
+ *           type: string
+ *           format: date-time
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *     CertificateTimelineResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         data:
+ *           type: object
+ *           properties:
+ *             certificateId:
+ *               type: string
+ *               example: "665f1a2b3c4d5e6f7a8b9c0d"
+ *             pagination:
+ *               type: object
+ *               properties:
+ *                 page:
+ *                   type: number
+ *                   example: 1
+ *                 limit:
+ *                   type: number
+ *                   example: 20
+ *                 total:
+ *                   type: number
+ *                   example: 17
+ *                 hasNext:
+ *                   type: boolean
+ *                   example: false
+ *             items:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/CertificateTimelineItem'
  */
 
 /**
@@ -333,6 +423,100 @@ router.get(
  *               $ref: '#/components/schemas/CertificateErrorResponse'
  */
 router.get("/certificates/:certificateNumber", getCertificate);
+
+/**
+ * @swagger
+ * /certification/certificates/{id}/timeline:
+ *   get:
+ *     summary: Get certificate activity timeline
+ *     description: >
+ *       Returns activity timeline events for a specific certificate ordered by event time.
+ *       Includes changes for issue, score updates, level changes, status changes, renewals,
+ *       revocations, inactivation, expiry, and feedback sync actions.
+ *     tags: [Certificate Lifecycle]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Certificate document ID
+ *         example: "665f1a2b3c4d5e6f7a8b9c0d"
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *       - in: query
+ *         name: order
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *       - in: query
+ *         name: from
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Start datetime filter (inclusive)
+ *       - in: query
+ *         name: to
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: End datetime filter (inclusive)
+ *       - in: query
+ *         name: eventType
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Comma-separated event type list (for example TRUST_SCORE_UPDATED,STATUS_CHANGED)
+ *     responses:
+ *       200:
+ *         description: Certificate timeline fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CertificateTimelineResponse'
+ *       400:
+ *         description: Invalid certificate ID, query values, or event type filter
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CertificateErrorResponse'
+ *       401:
+ *         description: Not authorized
+ *       403:
+ *         description: Insufficient role
+ *       404:
+ *         description: Certificate not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CertificateErrorResponse'
+ */
+
+router.get(
+   "/certificates/:id/timeline",
+   protect,
+   authorize("Admin", "Auditor"),
+   getCertificateTimeline,
+);
 
 /**
  * @swagger

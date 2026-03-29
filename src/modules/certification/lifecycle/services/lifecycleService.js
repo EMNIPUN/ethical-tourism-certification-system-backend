@@ -12,6 +12,11 @@ import {
    sendCertificateRenewedEmail,
    sendCertificateRevokedEmail,
 } from "../../../../common/utils/emailService.js";
+import CertificateActivity, {
+   CERTIFICATE_ACTIVITY_ACTOR,
+   CERTIFICATE_ACTIVITY_EVENT,
+   CERTIFICATE_ACTIVITY_SOURCE,
+} from "../models/CertificateActivity.js";
 /**
  * lifecycleService.js
  *
@@ -76,14 +81,73 @@ const clampScore = (score) => {
    return Math.min(TRUST_SCORE.MAX, Math.max(TRUST_SCORE.MIN, score));
 };
 
+const buildActorContext = (actor = null, fallbackSource = CERTIFICATE_ACTIVITY_SOURCE.API) => {
+   if (!actor) {
+      return {
+         actorType: CERTIFICATE_ACTIVITY_ACTOR.SYSTEM,
+         actorId: null,
+         source: fallbackSource,
+      };
+   }
+
+   return {
+      actorType: actor.actorType || CERTIFICATE_ACTIVITY_ACTOR.USER,
+      actorId: actor.actorId || null,
+      source: actor.source || fallbackSource,
+   };
+};
+
+const recordCertificateActivity = async ({
+   certificate,
+   eventType,
+   summary,
+   changes,
+   metadata,
+   actor,
+   source,
+}) => {
+   const actorContext = buildActorContext(actor, source || CERTIFICATE_ACTIVITY_SOURCE.API);
+
+   await CertificateActivity.create({
+      certificateId: certificate._id,
+      hotelId: certificate.hotelId,
+      eventType,
+      summary,
+      changes,
+      metadata,
+      actorType: actorContext.actorType,
+      actorId: actorContext.actorId,
+      source: actorContext.source,
+      eventTime: new Date(),
+   });
+};
+
 // --- Helper: Check and mark expiry ---
-const checkAndMarkExpiry = async (certificate) => {
+const checkAndMarkExpiry = async (certificate, actor = null) => {
    if (
       certificate.status === CERTIFICATE_STATUS.ACTIVE &&
       new Date() > certificate.expiryDate
    ) {
+      const previousStatus = certificate.status;
       certificate.status = CERTIFICATE_STATUS.EXPIRED;
       await certificate.save();
+
+      await recordCertificateActivity({
+         certificate,
+         eventType: CERTIFICATE_ACTIVITY_EVENT.CERTIFICATE_EXPIRED,
+         summary: "Certificate status changed to EXPIRED",
+         changes: {
+            status: {
+               before: previousStatus,
+               after: certificate.status,
+            },
+         },
+         metadata: {
+            expiredAt: new Date().toISOString(),
+         },
+         actor,
+         source: CERTIFICATE_ACTIVITY_SOURCE.SYSTEM,
+      });
 
       // Notify hotel about expiry
       const hotel = await Hotel.findById(certificate.hotelId);
@@ -99,7 +163,7 @@ const checkAndMarkExpiry = async (certificate) => {
  * @param {number} validityPeriodInMonths - How many months the certificate is valid.
  * @returns {Promise<Object>} The created certificate document.
  */
-export const issueCertificate = async (hotelId, validityPeriodInMonths) => {
+export const issueCertificate = async (hotelId, validityPeriodInMonths, actor = null) => {
    // Validate hotelId format
    if (!mongoose.Types.ObjectId.isValid(hotelId)) {
       const error = new Error("Invalid hotel ID format");
@@ -172,6 +236,33 @@ export const issueCertificate = async (hotelId, validityPeriodInMonths) => {
       level,
    });
 
+    await recordCertificateActivity({
+      certificate,
+      eventType: CERTIFICATE_ACTIVITY_EVENT.CERTIFICATE_ISSUED,
+      summary: "Certificate issued",
+      changes: {
+         status: {
+            before: null,
+            after: certificate.status,
+         },
+         trustScore: {
+            before: null,
+            after: certificate.trustScore,
+         },
+         level: {
+            before: null,
+            after: certificate.level,
+         },
+      },
+      metadata: {
+         certificateNumber: certificate.certificateNumber,
+         issuedDate: certificate.issuedDate,
+         expiryDate: certificate.expiryDate,
+      },
+      actor,
+      source: CERTIFICATE_ACTIVITY_SOURCE.API,
+   });
+
    // Notify hotel about new certificate
    await sendCertificateIssuedEmail(hotel, certificate);
 
@@ -241,7 +332,7 @@ export const getCertificateByNumber = async (certificateNumber) => {
  * @param {string} reason - Reason for the change.
  * @returns {Promise<Object>} The updated certificate document.
  */
-export const updateTrustScore = async (certificateId, scoreChange, reason) => {
+export const updateTrustScore = async (certificateId, scoreChange, reason, actor = null) => {
    if (!mongoose.Types.ObjectId.isValid(certificateId)) {
       const error = new Error("Invalid certificate ID format");
       error.statusCode = 400;
@@ -264,8 +355,11 @@ export const updateTrustScore = async (certificateId, scoreChange, reason) => {
    }
 
    // Auto-check expiry first
-   await checkAndMarkExpiry(certificate);
+   await checkAndMarkExpiry(certificate, actor);
 
+   const previousTrustScore = certificate.trustScore;
+   const previousStatus = certificate.status;
+   const previousLevel = certificate.level;
    const newScore = clampScore(certificate.trustScore + scoreChange);
    certificate.trustScore = newScore;
 
@@ -281,6 +375,82 @@ export const updateTrustScore = async (certificateId, scoreChange, reason) => {
    }
 
    await certificate.save();
+
+   await recordCertificateActivity({
+      certificate,
+      eventType: CERTIFICATE_ACTIVITY_EVENT.TRUST_SCORE_UPDATED,
+      summary: "Trust score updated manually",
+      changes: {
+         trustScore: {
+            before: previousTrustScore,
+            after: certificate.trustScore,
+         },
+      },
+      metadata: {
+         scoreChange,
+         reason,
+      },
+      actor,
+      source: CERTIFICATE_ACTIVITY_SOURCE.API,
+   });
+
+   if (previousLevel !== certificate.level) {
+      await recordCertificateActivity({
+         certificate,
+         eventType: CERTIFICATE_ACTIVITY_EVENT.LEVEL_CHANGED,
+         summary: "Certificate level updated after trust score change",
+         changes: {
+            level: {
+               before: previousLevel,
+               after: certificate.level,
+            },
+         },
+         metadata: {
+            reason: reason || "Manual trust score update",
+         },
+         actor,
+         source: CERTIFICATE_ACTIVITY_SOURCE.API,
+      });
+   }
+
+   if (previousStatus !== certificate.status) {
+      await recordCertificateActivity({
+         certificate,
+         eventType: CERTIFICATE_ACTIVITY_EVENT.STATUS_CHANGED,
+         summary: `Certificate status changed to ${certificate.status}`,
+         changes: {
+            status: {
+               before: previousStatus,
+               after: certificate.status,
+            },
+         },
+         metadata: {
+            reason: certificate.revokedReason || reason,
+         },
+         actor,
+         source: CERTIFICATE_ACTIVITY_SOURCE.API,
+      });
+   }
+
+   if (wasAutoRevoked) {
+      await recordCertificateActivity({
+         certificate,
+         eventType: CERTIFICATE_ACTIVITY_EVENT.AUTO_REVOCATION_TRIGGERED,
+         summary: "Certificate auto-revoked due to low trust score",
+         changes: {
+            trustScore: {
+               before: newScore,
+               after: certificate.trustScore,
+            },
+         },
+         metadata: {
+            threshold: TRUST_SCORE.REVOKE_THRESHOLD,
+            reason: certificate.revokedReason,
+         },
+         actor,
+         source: CERTIFICATE_ACTIVITY_SOURCE.API,
+      });
+   }
 
    // Notify hotel if auto-revoked due to low trust score
    if (wasAutoRevoked) {
@@ -301,6 +471,7 @@ export const updateTrustScore = async (certificateId, scoreChange, reason) => {
 export const renewCertificate = async (
    certificateId,
    validityPeriodInMonths,
+   actor = null,
 ) => {
    if (!mongoose.Types.ObjectId.isValid(certificateId)) {
       const error = new Error("Invalid certificate ID format");
@@ -321,6 +492,12 @@ export const renewCertificate = async (
       throw error;
    }
 
+   const previousExpiryDate = certificate.expiryDate;
+   const previousTrustScore = certificate.trustScore;
+   const previousLevel = certificate.level;
+   const previousRenewalCount = certificate.renewalCount;
+   const previousStatus = certificate.status;
+
    // Extend expiry from now (or from current expiry if still in the future)
    const baseDate =
       certificate.expiryDate > new Date() ? certificate.expiryDate : new Date();
@@ -339,6 +516,68 @@ export const renewCertificate = async (
 
    await certificate.save();
 
+   await recordCertificateActivity({
+      certificate,
+      eventType: CERTIFICATE_ACTIVITY_EVENT.CERTIFICATE_RENEWED,
+      summary: "Certificate renewed",
+      changes: {
+         expiryDate: {
+            before: previousExpiryDate,
+            after: certificate.expiryDate,
+         },
+         renewalCount: {
+            before: previousRenewalCount,
+            after: certificate.renewalCount,
+         },
+         status: {
+            before: previousStatus,
+            after: certificate.status,
+         },
+      },
+      metadata: {
+         validityPeriodInMonths,
+      },
+      actor,
+      source: CERTIFICATE_ACTIVITY_SOURCE.API,
+   });
+
+   await recordCertificateActivity({
+      certificate,
+      eventType: CERTIFICATE_ACTIVITY_EVENT.TRUST_SCORE_UPDATED,
+      summary: "Trust score updated due to certificate renewal",
+      changes: {
+         trustScore: {
+            before: previousTrustScore,
+            after: certificate.trustScore,
+         },
+      },
+      metadata: {
+         scoreChange: certificate.trustScore - previousTrustScore,
+         reason: "Renewal bonus applied",
+      },
+      actor,
+      source: CERTIFICATE_ACTIVITY_SOURCE.API,
+   });
+
+   if (previousLevel !== certificate.level) {
+      await recordCertificateActivity({
+         certificate,
+         eventType: CERTIFICATE_ACTIVITY_EVENT.LEVEL_CHANGED,
+         summary: "Certificate level updated after renewal",
+         changes: {
+            level: {
+               before: previousLevel,
+               after: certificate.level,
+            },
+         },
+         metadata: {
+            reason: "Renewal trust score bonus",
+         },
+         actor,
+         source: CERTIFICATE_ACTIVITY_SOURCE.API,
+      });
+   }
+
    // Notify hotel about renewal
    const hotelForRenewal = await Hotel.findById(certificate.hotelId);
    if (hotelForRenewal)
@@ -354,7 +593,7 @@ export const renewCertificate = async (
  * @param {string} reason - Reason for inactivation.
  * @returns {Promise<Object>} The inactivated certificate document.
  */
-export const inactivateCertificate = async (certificateId, reason) => {
+export const inactivateCertificate = async (certificateId, reason, actor = null) => {
    if (!mongoose.Types.ObjectId.isValid(certificateId)) {
       const error = new Error("Invalid certificate ID format");
       error.statusCode = 400;
@@ -374,10 +613,46 @@ export const inactivateCertificate = async (certificateId, reason) => {
       throw error;
    }
 
+   const previousStatus = certificate.status;
    certificate.status = CERTIFICATE_STATUS.INACTIVE;
    certificate.revokedReason = reason;
 
    await certificate.save();
+
+   await recordCertificateActivity({
+      certificate,
+      eventType: CERTIFICATE_ACTIVITY_EVENT.CERTIFICATE_INACTIVATED,
+      summary: "Certificate inactivated",
+      changes: {
+         status: {
+            before: previousStatus,
+            after: certificate.status,
+         },
+      },
+      metadata: {
+         reason,
+      },
+      actor,
+      source: CERTIFICATE_ACTIVITY_SOURCE.API,
+   });
+
+   await recordCertificateActivity({
+      certificate,
+      eventType: CERTIFICATE_ACTIVITY_EVENT.STATUS_CHANGED,
+      summary: `Certificate status changed to ${certificate.status}`,
+      changes: {
+         status: {
+            before: previousStatus,
+            after: certificate.status,
+         },
+      },
+      metadata: {
+         reason,
+      },
+      actor,
+      source: CERTIFICATE_ACTIVITY_SOURCE.API,
+   });
+
    return certificate;
 };
 
@@ -388,7 +663,7 @@ export const inactivateCertificate = async (certificateId, reason) => {
  * @param {string} reason - Reason for revocation.
  * @returns {Promise<Object>} The revoked certificate document.
  */
-export const revokeCertificate = async (certificateId, reason) => {
+export const revokeCertificate = async (certificateId, reason, actor = null) => {
    if (!mongoose.Types.ObjectId.isValid(certificateId)) {
       const error = new Error("Invalid certificate ID format");
       error.statusCode = 400;
@@ -408,11 +683,51 @@ export const revokeCertificate = async (certificateId, reason) => {
       throw error;
    }
 
+   const previousStatus = certificate.status;
+   const previousTrustScore = certificate.trustScore;
    certificate.status = CERTIFICATE_STATUS.REVOKED;
    certificate.trustScore = TRUST_SCORE.MIN;
    certificate.revokedReason = reason;
 
    await certificate.save();
+
+   await recordCertificateActivity({
+      certificate,
+      eventType: CERTIFICATE_ACTIVITY_EVENT.CERTIFICATE_REVOKED,
+      summary: "Certificate revoked",
+      changes: {
+         status: {
+            before: previousStatus,
+            after: certificate.status,
+         },
+         trustScore: {
+            before: previousTrustScore,
+            after: certificate.trustScore,
+         },
+      },
+      metadata: {
+         reason,
+      },
+      actor,
+      source: CERTIFICATE_ACTIVITY_SOURCE.API,
+   });
+
+   await recordCertificateActivity({
+      certificate,
+      eventType: CERTIFICATE_ACTIVITY_EVENT.STATUS_CHANGED,
+      summary: `Certificate status changed to ${certificate.status}`,
+      changes: {
+         status: {
+            before: previousStatus,
+            after: certificate.status,
+         },
+      },
+      metadata: {
+         reason,
+      },
+      actor,
+      source: CERTIFICATE_ACTIVITY_SOURCE.API,
+   });
 
    // Notify hotel about revocation
    const hotelForRevoke = await Hotel.findById(certificate.hotelId);
@@ -443,6 +758,7 @@ export const updateCertificateTrustScore = async (
    hotelId,
    averageRating,
    reviewCount,
+   actor = null,
 ) => {
    if (!mongoose.Types.ObjectId.isValid(hotelId)) {
       const error = new Error("Invalid hotel ID format");
@@ -460,6 +776,10 @@ export const updateCertificateTrustScore = async (
       error.statusCode = 404;
       throw error;
    }
+
+   const previousTrustScore = certificate.trustScore;
+   const previousLevel = certificate.level;
+   const previousStatus = certificate.status;
 
    const newScore = calculateTrustScore({
       averageRating,
@@ -485,6 +805,104 @@ export const updateCertificateTrustScore = async (
    }
 
    await certificate.save();
+
+   await recordCertificateActivity({
+      certificate,
+      eventType: CERTIFICATE_ACTIVITY_EVENT.FEEDBACK_SYNC_APPLIED,
+      summary: "Feedback sync applied to certificate trust metrics",
+      changes: {
+         trustScore: {
+            before: previousTrustScore,
+            after: certificate.trustScore,
+         },
+      },
+      metadata: {
+         averageRating,
+         reviewCount,
+      },
+      actor,
+      source: CERTIFICATE_ACTIVITY_SOURCE.FEEDBACK_SYNC,
+   });
+
+   await recordCertificateActivity({
+      certificate,
+      eventType: CERTIFICATE_ACTIVITY_EVENT.TRUST_SCORE_UPDATED,
+      summary: "Trust score recalculated from feedback",
+      changes: {
+         trustScore: {
+            before: previousTrustScore,
+            after: certificate.trustScore,
+         },
+      },
+      metadata: {
+         averageRating,
+         reviewCount,
+      },
+      actor,
+      source: CERTIFICATE_ACTIVITY_SOURCE.FEEDBACK_SYNC,
+   });
+
+   if (previousLevel !== certificate.level) {
+      await recordCertificateActivity({
+         certificate,
+         eventType: CERTIFICATE_ACTIVITY_EVENT.LEVEL_CHANGED,
+         summary: "Certificate level updated after feedback sync",
+         changes: {
+            level: {
+               before: previousLevel,
+               after: certificate.level,
+            },
+         },
+         metadata: {
+            averageRating,
+            reviewCount,
+         },
+         actor,
+         source: CERTIFICATE_ACTIVITY_SOURCE.FEEDBACK_SYNC,
+      });
+   }
+
+   if (previousStatus !== certificate.status) {
+      await recordCertificateActivity({
+         certificate,
+         eventType: CERTIFICATE_ACTIVITY_EVENT.STATUS_CHANGED,
+         summary: `Certificate status changed to ${certificate.status}`,
+         changes: {
+            status: {
+               before: previousStatus,
+               after: certificate.status,
+            },
+         },
+         metadata: {
+            reason: certificate.revokedReason,
+            averageRating,
+            reviewCount,
+         },
+         actor,
+         source: CERTIFICATE_ACTIVITY_SOURCE.FEEDBACK_SYNC,
+      });
+   }
+
+   if (wasAutoRevoked) {
+      await recordCertificateActivity({
+         certificate,
+         eventType: CERTIFICATE_ACTIVITY_EVENT.AUTO_REVOCATION_TRIGGERED,
+         summary: "Certificate auto-revoked from feedback trust score",
+         changes: {
+            trustScore: {
+               before: newScore,
+               after: certificate.trustScore,
+            },
+         },
+         metadata: {
+            threshold: TRUST_SCORE.REVOKE_THRESHOLD,
+            reviewCount,
+            minReviewsForRevocation: TRUST_SCORE.MIN_REVIEWS_FOR_REVOCATION,
+         },
+         actor,
+         source: CERTIFICATE_ACTIVITY_SOURCE.FEEDBACK_SYNC,
+      });
+   }
 
    if (wasAutoRevoked) {
       const hotel = await Hotel.findById(certificate.hotelId);
@@ -531,4 +949,85 @@ export const getEligibleHotelsForCertification = async () => {
       createdAt: request.createdAt,
       updatedAt: request.updatedAt,
    }));
+};
+
+export const getCertificateTimeline = async (certificateId, options = {}) => {
+   if (!mongoose.Types.ObjectId.isValid(certificateId)) {
+      const error = new Error("Invalid certificate ID format");
+      error.statusCode = 400;
+      throw error;
+   }
+
+   const certificate = await Certificate.findById(certificateId).select("_id");
+   if (!certificate) {
+      const error = new Error("Certificate not found");
+      error.statusCode = 404;
+      throw error;
+   }
+
+   const page = Math.max(1, Number(options.page) || 1);
+   const limit = Math.min(100, Math.max(1, Number(options.limit) || 20));
+   const normalizedOrder = String(options.order || "desc").toLowerCase();
+   if (!["asc", "desc"].includes(normalizedOrder)) {
+      const error = new Error("Invalid order value. Use 'asc' or 'desc'");
+      error.statusCode = 400;
+      throw error;
+   }
+   const order = normalizedOrder;
+
+   const query = {
+      certificateId,
+   };
+
+   if (options.eventType && options.eventType.length) {
+      const invalidEventType = options.eventType.find(
+         (item) => !Object.values(CERTIFICATE_ACTIVITY_EVENT).includes(item),
+      );
+      if (invalidEventType) {
+         const error = new Error(`Invalid eventType: ${invalidEventType}`);
+         error.statusCode = 400;
+         throw error;
+      }
+      query.eventType = { $in: options.eventType };
+   }
+
+   if (options.from || options.to) {
+      query.eventTime = {};
+      if (options.from) {
+         const fromDate = new Date(options.from);
+         if (Number.isNaN(fromDate.getTime())) {
+            const error = new Error("Invalid from date");
+            error.statusCode = 400;
+            throw error;
+         }
+         query.eventTime.$gte = fromDate;
+      }
+      if (options.to) {
+         const toDate = new Date(options.to);
+         if (Number.isNaN(toDate.getTime())) {
+            const error = new Error("Invalid to date");
+            error.statusCode = 400;
+            throw error;
+         }
+         query.eventTime.$lte = toDate;
+      }
+   }
+
+   const total = await CertificateActivity.countDocuments(query);
+   const items = await CertificateActivity.find(query)
+      .sort({ eventTime: order === "asc" ? 1 : -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+   return {
+      certificateId,
+      pagination: {
+         page,
+         limit,
+         total,
+         hasNext: page * limit < total,
+      },
+      items,
+   };
 };

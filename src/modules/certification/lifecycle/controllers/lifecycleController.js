@@ -1,6 +1,12 @@
 import * as lifecycleService from "../services/lifecycleService.js";
 import asyncHandler from "../../../../common/utils/asyncHandler.js";
 
+const getActor = (req, source = "API") => ({
+   actorType: "USER",
+   actorId: req.user?._id?.toString() || null,
+   source,
+});
+
 // Get all hotels eligible for certification
 export const getEligibleHotels = asyncHandler(async (req, res) => {
    const hotels = await lifecycleService.getEligibleHotelsForCertification();
@@ -20,6 +26,7 @@ export const issueCertificate = asyncHandler(async (req, res) => {
    const certificate = await lifecycleService.issueCertificate(
       hotelId,
       validityPeriodInMonths,
+      getActor(req),
    );
 
    res.status(201).json({ success: true, data: certificate });
@@ -57,6 +64,7 @@ export const updateTrustScore = asyncHandler(async (req, res) => {
       req.params.id,
       scoreChange,
       reason,
+      getActor(req),
    );
 
    res.status(200).json({ success: true, data: certificate });
@@ -71,6 +79,7 @@ export const renewCertificate = asyncHandler(async (req, res) => {
    const certificate = await lifecycleService.renewCertificate(
       req.params.id,
       period,
+      getActor(req),
    );
 
    res.status(200).json({ success: true, data: certificate });
@@ -83,6 +92,7 @@ export const inactivateCertificate = asyncHandler(async (req, res) => {
    const certificate = await lifecycleService.inactivateCertificate(
       req.params.id,
       reason,
+      getActor(req),
    );
 
    res.status(200).json({ success: true, data: certificate });
@@ -95,6 +105,7 @@ export const revokeCertificate = asyncHandler(async (req, res) => {
    const certificate = await lifecycleService.revokeCertificate(
       req.params.id,
       reason,
+      getActor(req),
    );
 
    res.status(200).json({ success: true, data: certificate });
@@ -109,8 +120,30 @@ export const updateCertificateTrustScoreByHotel = asyncHandler(
          req.params.hotelId,
          averageRating,
          reviewCount,
+         getActor(req),
       );
 
       res.status(200).json({ success: true, data: certificate });
    },
 );
+
+export const getCertificateTimeline = asyncHandler(async (req, res) => {
+   const { page, limit, order, from, to, eventType } = req.query;
+
+   const timeline = await lifecycleService.getCertificateTimeline(req.params.id, {
+      page,
+      limit,
+      order,
+      from,
+      to,
+      eventType:
+         typeof eventType === "string" && eventType.trim()
+            ? eventType
+                 .split(",")
+                 .map((item) => item.trim())
+                 .filter(Boolean)
+            : undefined,
+   });
+
+   res.status(200).json({ success: true, data: timeline });
+});
