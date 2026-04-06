@@ -56,6 +56,16 @@ export const getCertificate = asyncHandler(async (req, res) => {
    res.status(200).json({ success: true, data: certificate });
 });
 
+export const updateCertificateDetails = asyncHandler(async (req, res) => {
+   const certificate = await lifecycleService.updateCertificateDetails(
+      req.params.id,
+      req.body,
+      getActor(req),
+   );
+
+   res.status(200).json({ success: true, data: certificate });
+});
+
 // Update trust score
 export const updateTrustScore = asyncHandler(async (req, res) => {
    const { scoreChange, reason } = req.body;

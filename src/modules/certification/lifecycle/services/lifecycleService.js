@@ -338,6 +338,202 @@ export const getCertificateByNumber = async (certificateNumber) => {
    return certificate;
 };
 
+export const updateCertificateDetails = async (certificateId, payload, actor = null) => {
+   if (!mongoose.Types.ObjectId.isValid(certificateId)) {
+      const error = new Error("Invalid certificate ID format");
+      error.statusCode = 400;
+      throw error;
+   }
+
+   const certificate = await Certificate.findById(certificateId);
+   if (!certificate) {
+      const error = new Error("Certificate not found");
+      error.statusCode = 404;
+      throw error;
+   }
+
+   if (payload.hotelId !== undefined) {
+      if (!mongoose.Types.ObjectId.isValid(payload.hotelId)) {
+         const error = new Error("Invalid hotel ID format");
+         error.statusCode = 400;
+         throw error;
+      }
+
+      const hotel = await Hotel.findById(payload.hotelId).select("_id");
+      if (!hotel) {
+         const error = new Error("Hotel not found");
+         error.statusCode = 404;
+         throw error;
+      }
+
+      certificate.hotelId = payload.hotelId;
+   }
+
+   const before = {
+      issuedDate: certificate.issuedDate,
+      expiryDate: certificate.expiryDate,
+      status: certificate.status,
+      trustScore: certificate.trustScore,
+      level: certificate.level,
+      renewalCount: certificate.renewalCount,
+      revokedReason: certificate.revokedReason,
+      hotelId: certificate.hotelId?.toString(),
+   };
+
+   if (payload.issuedDate !== undefined) {
+      certificate.issuedDate = payload.issuedDate;
+   }
+
+   if (payload.expiryDate !== undefined) {
+      certificate.expiryDate = payload.expiryDate;
+   }
+
+   if (payload.status !== undefined) {
+      certificate.status = payload.status;
+   }
+
+   if (payload.trustScore !== undefined) {
+      certificate.trustScore = clampScore(payload.trustScore);
+   }
+
+   if (payload.level !== undefined) {
+      certificate.level = payload.level;
+   }
+
+   if (payload.renewalCount !== undefined) {
+      certificate.renewalCount = payload.renewalCount;
+   }
+
+   if (payload.revokedReason !== undefined) {
+      certificate.revokedReason = payload.revokedReason || undefined;
+   }
+
+   if (certificate.status === CERTIFICATE_STATUS.REVOKED) {
+      certificate.trustScore = TRUST_SCORE.MIN;
+      if (!String(certificate.revokedReason || "").trim()) {
+         const error = new Error("revokedReason is required when status is REVOKED");
+         error.statusCode = 400;
+         throw error;
+      }
+   }
+
+   if (certificate.status !== CERTIFICATE_STATUS.REVOKED && payload.revokedReason === "") {
+      certificate.revokedReason = undefined;
+   }
+
+   if (certificate.status !== CERTIFICATE_STATUS.REVOKED && certificate.level == null) {
+      certificate.level = calculateLevel(certificate.trustScore);
+   }
+
+   await certificate.save();
+
+   const changes = {};
+   const fieldNames = [
+      "hotelId",
+      "issuedDate",
+      "expiryDate",
+      "status",
+      "trustScore",
+      "level",
+      "renewalCount",
+      "revokedReason",
+   ];
+
+   for (const field of fieldNames) {
+      const previousValue = field === "hotelId" ? before[field] : before[field] ?? null;
+      const currentRaw = certificate[field];
+      const currentValue =
+         field === "hotelId"
+            ? currentRaw?.toString() || null
+            : currentRaw instanceof Date
+              ? currentRaw.toISOString()
+              : currentRaw ?? null;
+
+      const normalizedPrevious =
+         previousValue instanceof Date
+            ? previousValue.toISOString()
+            : previousValue ?? null;
+
+      if (normalizedPrevious !== currentValue) {
+         changes[field] = {
+            before: normalizedPrevious,
+            after: currentValue,
+         };
+      }
+   }
+
+   await recordCertificateActivity({
+      certificate,
+      eventType: CERTIFICATE_ACTIVITY_EVENT.CERTIFICATE_UPDATED,
+      summary: "Certificate details updated manually",
+      changes,
+      metadata: {
+         updatedFields: Object.keys(changes),
+      },
+      actor,
+      source: CERTIFICATE_ACTIVITY_SOURCE.API,
+   });
+
+   if (before.status !== certificate.status) {
+      await recordCertificateActivity({
+         certificate,
+         eventType: CERTIFICATE_ACTIVITY_EVENT.STATUS_CHANGED,
+         summary: `Certificate status changed to ${certificate.status}`,
+         changes: {
+            status: {
+               before: before.status,
+               after: certificate.status,
+            },
+         },
+         metadata: {
+            reason: certificate.revokedReason,
+         },
+         actor,
+         source: CERTIFICATE_ACTIVITY_SOURCE.API,
+      });
+   }
+
+   if (before.trustScore !== certificate.trustScore) {
+      await recordCertificateActivity({
+         certificate,
+         eventType: CERTIFICATE_ACTIVITY_EVENT.TRUST_SCORE_UPDATED,
+         summary: "Trust score updated from certificate edit",
+         changes: {
+            trustScore: {
+               before: before.trustScore,
+               after: certificate.trustScore,
+            },
+         },
+         metadata: {
+            reason: "Manual certificate details update",
+         },
+         actor,
+         source: CERTIFICATE_ACTIVITY_SOURCE.API,
+      });
+   }
+
+   if (before.level !== certificate.level) {
+      await recordCertificateActivity({
+         certificate,
+         eventType: CERTIFICATE_ACTIVITY_EVENT.LEVEL_CHANGED,
+         summary: "Certificate level changed from certificate edit",
+         changes: {
+            level: {
+               before: before.level,
+               after: certificate.level,
+            },
+         },
+         metadata: {
+            reason: "Manual certificate details update",
+         },
+         actor,
+         source: CERTIFICATE_ACTIVITY_SOURCE.API,
+      });
+   }
+
+   return certificate;
+};
+
 /**
  * Update the trust score of a certificate.
  *

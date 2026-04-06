@@ -4,6 +4,7 @@ import {
    getCertificate,
    getHotelsWithCertificates,
    getEligibleHotels,
+   updateCertificateDetails,
    updateTrustScore,
    renewCertificate,
    revokeCertificate,
@@ -18,6 +19,7 @@ import {
 import { validate } from "../../../../common/middleware/validateMiddleware.js";
 import {
    issueCertificateSchema,
+   updateCertificateDetailsSchema,
    updateTrustScoreSchema,
    renewCertificateSchema,
    revokeCertificateSchema,
@@ -423,6 +425,14 @@ router.get(
  *               $ref: '#/components/schemas/CertificateErrorResponse'
  */
 router.get("/certificates/:certificateNumber", getCertificate);
+
+router.put(
+   "/certificates/:id",
+   protect,
+   authorize("Admin"),
+   validate(updateCertificateDetailsSchema),
+   updateCertificateDetails,
+);
 
 /**
  * @swagger
