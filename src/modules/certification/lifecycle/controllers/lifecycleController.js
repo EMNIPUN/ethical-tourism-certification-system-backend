@@ -108,6 +108,16 @@ export const inactivateCertificate = asyncHandler(async (req, res) => {
    res.status(200).json({ success: true, data: certificate });
 });
 
+// Permanently delete (hard-delete) a certificate
+export const deleteCertificatePermanently = asyncHandler(async (req, res) => {
+   const result = await lifecycleService.deleteCertificatePermanently(
+      req.params.id,
+      getActor(req),
+   );
+
+   res.status(200).json({ success: true, data: result });
+});
+
 // Revoke a certificate
 export const revokeCertificate = asyncHandler(async (req, res) => {
    const { reason } = req.body;

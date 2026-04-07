@@ -867,6 +867,40 @@ export const inactivateCertificate = async (certificateId, reason, actor = null)
 };
 
 /**
+ * Permanently delete (hard-delete) a certificate and related activity records.
+ *
+ * @param {string} certificateId - The certificate's ObjectId.
+ * @returns {Promise<Object>} Deletion summary.
+ */
+export const deleteCertificatePermanently = async (certificateId, actor = null) => {
+   if (!mongoose.Types.ObjectId.isValid(certificateId)) {
+      const error = new Error("Invalid certificate ID format");
+      error.statusCode = 400;
+      throw error;
+   }
+
+   const certificate = await Certificate.findById(certificateId);
+   if (!certificate) {
+      const error = new Error("Certificate not found");
+      error.statusCode = 404;
+      throw error;
+   }
+
+   const deletedActivities = await CertificateActivity.deleteMany({
+      certificateId: certificate._id,
+   });
+
+   await Certificate.deleteOne({ _id: certificate._id });
+
+   return {
+      deletedCertificateId: certificate._id,
+      certificateNumber: certificate.certificateNumber,
+      deletedActivityCount: deletedActivities.deletedCount || 0,
+      deletedBy: buildActorContext(actor, CERTIFICATE_ACTIVITY_SOURCE.API),
+   };
+};
+
+/**
  * Revoke a certificate.
  *
  * @param {string} certificateId - The certificate's ObjectId.

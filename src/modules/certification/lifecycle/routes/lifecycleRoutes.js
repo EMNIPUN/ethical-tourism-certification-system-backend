@@ -9,6 +9,7 @@ import {
    renewCertificate,
    revokeCertificate,
    inactivateCertificate,
+   deleteCertificatePermanently,
    updateCertificateTrustScoreByHotel,
    getCertificateTimeline,
 } from "../controllers/lifecycleController.js";
@@ -719,11 +720,11 @@ router.put(
  * @swagger
  * /certification/certificates/{id}:
  *   delete:
- *     summary: Inactivate (soft-delete) a certificate
+ *     summary: Permanently delete a certificate (hard-delete)
  *     description: >
- *       Marks a certificate as INACTIVE — a soft-delete operation representing
- *       the CRUD delete action. The certificate record is retained in the database
- *       but is permanently deactivated. Cannot be applied to an already inactive certificate.
+ *       Permanently removes the certificate record from the database.
+ *       This is a hard-delete operation intended for admin/test cleanup flows
+ *       where a certificate must be re-issued from scratch.
  *       Admin only.
  *     tags: [Certificate Lifecycle]
  *     security:
@@ -736,28 +737,15 @@ router.put(
  *           type: string
  *         description: The certificate document ID
  *         example: "665f1a2b3c4d5e6f7a8b9c0d"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - reason
- *             properties:
- *               reason:
- *                 type: string
- *                 description: Reason for inactivating the certificate
- *                 example: "Hotel permanently closed"
  *     responses:
  *       200:
- *         description: Certificate inactivated successfully
+ *         description: Certificate permanently deleted
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/CertificateResponse'
  *       400:
- *         description: Certificate is already inactive
+ *         description: Invalid certificate ID
  *         content:
  *           application/json:
  *             schema:
@@ -771,6 +759,13 @@ router.put(
  */
 router.delete(
    "/certificates/:id",
+   protect,
+   authorize("Admin"),
+   deleteCertificatePermanently,
+);
+
+router.put(
+   "/certificates/:id/inactivate",
    protect,
    authorize("Admin"),
    validate(inactivateCertificateSchema),
