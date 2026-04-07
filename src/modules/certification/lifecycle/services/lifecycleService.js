@@ -12,6 +12,7 @@ import {
    sendCertificateRenewedEmail,
    sendCertificateRevokedEmail,
 } from "../../../../common/utils/emailService.js";
+import { generateAndUploadCertificatePdf } from "./certificateDocumentService.js";
 import CertificateActivity, {
    CERTIFICATE_ACTIVITY_ACTOR,
    CERTIFICATE_ACTIVITY_EVENT,
@@ -122,6 +123,46 @@ const recordCertificateActivity = async ({
    });
 };
 
+const getCertificateAssetForEmail = async ({
+   hotel,
+   certificate,
+   lifecycleEvent,
+   required = true,
+}) => {
+   try {
+      const asset = await generateAndUploadCertificatePdf({
+         hotel,
+         certificate,
+         lifecycleEvent,
+      });
+
+      if (!asset) {
+         const error = new Error(
+            "Certificate PDF upload skipped because Cloudinary is not configured",
+         );
+         error.statusCode = 500;
+         throw error;
+      }
+
+      return asset;
+   } catch (error) {
+      console.error(
+         `[CertificateDocument] Failed to generate/upload PDF for ${lifecycleEvent}:`,
+         error?.message || error,
+      );
+
+      if (required) {
+         const wrapped = new Error(
+            `Certificate download link could not be generated for ${lifecycleEvent}. ${error?.message || "Cloudinary upload failed."}`,
+         );
+         wrapped.statusCode = error?.statusCode || 500;
+         throw wrapped;
+      }
+
+      return null;
+   }
+};
+
 // --- Helper: Check and mark expiry ---
 const checkAndMarkExpiry = async (certificate, actor = null) => {
    if (
@@ -151,7 +192,18 @@ const checkAndMarkExpiry = async (certificate, actor = null) => {
 
       // Notify hotel about expiry
       const hotel = await Hotel.findById(certificate.hotelId);
-      if (hotel) await sendCertificateExpiredEmail(hotel, certificate);
+      if (hotel) {
+         const certificateAsset = await getCertificateAssetForEmail({
+            hotel,
+            certificate,
+            lifecycleEvent: "expired",
+            required: false,
+         });
+
+         if (certificateAsset) {
+            await sendCertificateExpiredEmail(hotel, certificate, certificateAsset);
+         }
+      }
    }
    return certificate;
 };
@@ -264,7 +316,12 @@ export const issueCertificate = async (hotelId, validityPeriodInMonths, actor = 
    });
 
    // Notify hotel about new certificate
-   await sendCertificateIssuedEmail(hotel, certificate);
+   const issuedCertificateAsset = await getCertificateAssetForEmail({
+      hotel,
+      certificate,
+      lifecycleEvent: "issued",
+   });
+   await sendCertificateIssuedEmail(hotel, certificate, issuedCertificateAsset);
 
    return certificate;
 };
@@ -665,7 +722,18 @@ export const updateTrustScore = async (certificateId, scoreChange, reason, actor
    // Notify hotel if auto-revoked due to low trust score
    if (wasAutoRevoked) {
       const hotel = await Hotel.findById(certificate.hotelId);
-      if (hotel) await sendCertificateRevokedEmail(hotel, certificate);
+      if (hotel) {
+         const revokedCertificateAsset = await getCertificateAssetForEmail({
+            hotel,
+            certificate,
+            lifecycleEvent: "revoked",
+         });
+         await sendCertificateRevokedEmail(
+            hotel,
+            certificate,
+            revokedCertificateAsset,
+         );
+      }
    }
 
    return certificate;
@@ -790,8 +858,18 @@ export const renewCertificate = async (
 
    // Notify hotel about renewal
    const hotelForRenewal = await Hotel.findById(certificate.hotelId);
-   if (hotelForRenewal)
-      await sendCertificateRenewedEmail(hotelForRenewal, certificate);
+   if (hotelForRenewal) {
+      const renewedCertificateAsset = await getCertificateAssetForEmail({
+         hotel: hotelForRenewal,
+         certificate,
+         lifecycleEvent: "renewed",
+      });
+      await sendCertificateRenewedEmail(
+         hotelForRenewal,
+         certificate,
+         renewedCertificateAsset,
+      );
+   }
 
    return certificate;
 };
@@ -975,8 +1053,18 @@ export const revokeCertificate = async (certificateId, reason, actor = null) => 
 
    // Notify hotel about revocation
    const hotelForRevoke = await Hotel.findById(certificate.hotelId);
-   if (hotelForRevoke)
-      await sendCertificateRevokedEmail(hotelForRevoke, certificate);
+   if (hotelForRevoke) {
+      const revokedCertificateAsset = await getCertificateAssetForEmail({
+         hotel: hotelForRevoke,
+         certificate,
+         lifecycleEvent: "revoked",
+      });
+      await sendCertificateRevokedEmail(
+         hotelForRevoke,
+         certificate,
+         revokedCertificateAsset,
+      );
+   }
 
    return certificate;
 };
@@ -1150,7 +1238,18 @@ export const updateCertificateTrustScore = async (
 
    if (wasAutoRevoked) {
       const hotel = await Hotel.findById(certificate.hotelId);
-      if (hotel) await sendCertificateRevokedEmail(hotel, certificate);
+      if (hotel) {
+         const revokedCertificateAsset = await getCertificateAssetForEmail({
+            hotel,
+            certificate,
+            lifecycleEvent: "revoked",
+         });
+         await sendCertificateRevokedEmail(
+            hotel,
+            certificate,
+            revokedCertificateAsset,
+         );
+      }
    }
 
    return certificate;
