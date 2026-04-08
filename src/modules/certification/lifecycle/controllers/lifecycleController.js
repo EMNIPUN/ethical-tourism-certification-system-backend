@@ -167,3 +167,88 @@ export const getCertificateTimeline = asyncHandler(async (req, res) => {
 
    res.status(200).json({ success: true, data: timeline });
 });
+
+export const downloadCertificateFromEmailLink = asyncHandler(async (req, res) => {
+   const token = req.query?.token;
+   if (!token || typeof token !== "string") {
+      const error = new Error("Missing certificate download token");
+      error.statusCode = 400;
+      throw error;
+   }
+
+   const mode = String(req.query?.mode || "").toLowerCase();
+   const resolvedAsset = lifecycleService.resolveCertificateDownloadAssetFromToken(token);
+
+   if (mode !== "file") {
+      const fileModeUrl = `${req.baseUrl}${req.path}?token=${encodeURIComponent(token)}&mode=file`;
+
+      return res.status(200).type("html").send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Preparing Certificate Download</title>
+</head>
+<body style="margin:0;padding:24px;font-family:'Segoe UI',Arial,sans-serif;background:#f8fafc;color:#0f172a;">
+  <div style="max-width:560px;margin:0 auto;padding:20px 22px;border:1px solid #cbd5e1;border-radius:10px;background:#ffffff;">
+    <p id="download-status" style="margin:0 0 10px;font-size:16px;font-weight:600;">Preparing your certificate download...</p>
+    <p style="margin:0;font-size:14px;line-height:1.55;color:#475569;">
+      The PDF should start downloading automatically. This tab will try to close itself.
+    </p>
+    <noscript>
+      <p style="margin:14px 0 0;font-size:14px;">
+        JavaScript is disabled. <a href="${fileModeUrl}">Click here to download your certificate</a>.
+      </p>
+    </noscript>
+  </div>
+  <script>
+    (() => {
+      const fileUrl = ${JSON.stringify(fileModeUrl)};
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = fileUrl;
+      document.body.appendChild(iframe);
+
+      const statusEl = document.getElementById("download-status");
+      setTimeout(() => {
+        window.close();
+      }, 1800);
+      setTimeout(() => {
+        if (statusEl) {
+          statusEl.textContent = "Download started. You can close this tab if it remains open.";
+        }
+      }, 2300);
+    })();
+  </script>
+</body>
+</html>`);
+   }
+
+   const upstream = await fetch(resolvedAsset.downloadUrl);
+   if (!upstream.ok) {
+      if (
+         resolvedAsset.fallbackUrl &&
+         resolvedAsset.fallbackUrl !== resolvedAsset.downloadUrl
+      ) {
+         return res.redirect(resolvedAsset.fallbackUrl);
+      }
+
+      const error = new Error("Certificate file could not be downloaded");
+      error.statusCode = 502;
+      throw error;
+   }
+
+   const fileBuffer = Buffer.from(await upstream.arrayBuffer());
+   const contentType =
+      upstream.headers.get("content-type") || resolvedAsset.contentType || "application/pdf";
+
+   res.setHeader("Content-Type", contentType);
+   res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${resolvedAsset.fileName || "certificate.pdf"}"`,
+   );
+   res.setHeader("Cache-Control", "no-store, max-age=0");
+   res.setHeader("Content-Length", String(fileBuffer.length));
+
+   return res.status(200).send(fileBuffer);
+});

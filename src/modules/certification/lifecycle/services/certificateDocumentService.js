@@ -691,29 +691,117 @@ const buildUploadSignature = (params, apiSecret) => {
       .digest("hex");
 };
 
-const buildCloudinaryDownloadUrl = (secureUrl) => {
-   if (!secureUrl) return "";
-   const safeFilename = `${sanitizeSegment(
-      path.basename(String(secureUrl).split("?")[0], path.extname(String(secureUrl).split("?")[0])) || "certificate",
-      "certificate",
-   )}.pdf`;
+const withExtension = (publicId, format = "pdf") => {
+   const safePublicId = String(publicId || "").trim().replace(/^\/+/, "");
+   if (!safePublicId) return "";
 
-   if (secureUrl.includes("/image/upload/")) {
-      return secureUrl.replace(
-         "/image/upload/",
-         `/image/upload/fl_attachment:${safeFilename}/`,
-      );
+   const safeFormat = sanitizeSegment(format, "pdf");
+   const duplicateExtensionPattern = new RegExp(`(\\.${safeFormat})+$`, "i");
+   const withoutTrailingExtensions = safePublicId.replace(duplicateExtensionPattern, "");
+
+   if (!withoutTrailingExtensions) {
+      return safePublicId.toLowerCase().endsWith(`.${safeFormat}`)
+         ? safePublicId
+         : `${safePublicId}.${safeFormat}`;
    }
 
-   // Backward compatibility: previously uploaded raw assets.
-   if (secureUrl.includes("/raw/upload/")) {
-      return secureUrl.replace(
-         "/raw/upload/",
-         `/raw/upload/fl_attachment:${safeFilename}/`,
-      );
+   return `${withoutTrailingExtensions}.${safeFormat}`;
+};
+
+const sanitizeAttachmentFilename = (
+   attachmentName,
+   fallback = "certificate.pdf",
+) => {
+   const safeName = String(attachmentName || "")
+      .trim()
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+   return safeName || fallback;
+};
+
+const toCloudinaryAttachmentTransform = (attachmentName) => {
+   const safeName = sanitizeAttachmentFilename(attachmentName, "");
+   if (!safeName) return "fl_attachment";
+
+   // Dots are interpreted as transformation separators in this segment.
+   const transformSafeName = safeName.replace(/\./g, "-");
+   return `fl_attachment:${encodeURIComponent(transformSafeName)}`;
+};
+
+export const buildCloudinaryDownloadUrl = ({
+   secureUrl,
+   cloudName,
+   publicId,
+   version,
+   format = "pdf",
+   attachmentName,
+}) => {
+   const safeCloudName = String(cloudName || "").trim().toLowerCase();
+   const safePublicId = withExtension(publicId, format);
+   const safeVersion = String(version || "").trim().replace(/^v/i, "");
+   const attachmentTransform = toCloudinaryAttachmentTransform(attachmentName);
+
+   if (safeCloudName && safePublicId && safeVersion) {
+      return `https://res.cloudinary.com/${safeCloudName}/raw/upload/${attachmentTransform}/v${safeVersion}/${safePublicId}`;
    }
 
-   return secureUrl;
+   if (secureUrl?.includes("/raw/upload/")) {
+      return secureUrl.replace("/raw/upload/", `/raw/upload/${attachmentTransform}/`);
+   }
+
+   if (secureUrl?.includes("/image/upload/")) {
+      return secureUrl.replace("/image/upload/", `/image/upload/${attachmentTransform}/`);
+   }
+
+   return secureUrl || "";
+};
+
+export const buildCloudinarySignedRawDownloadUrl = ({
+   cloudName,
+   apiKey,
+   apiSecret,
+   publicId,
+   format = "pdf",
+   attachmentName,
+   deliveryType = "upload",
+}) => {
+   const safeCloudName = String(cloudName || "").trim().toLowerCase();
+   const safeApiKey = String(apiKey || "").trim();
+   const safeApiSecret = String(apiSecret || "").trim();
+   const safePublicId = withExtension(publicId, format);
+
+   if (!safeCloudName || !safeApiKey || !safeApiSecret || !safePublicId) {
+      return "";
+   }
+
+   const safeDeliveryType = sanitizeSegment(deliveryType, "upload");
+   const safeAttachmentName = sanitizeAttachmentFilename(
+      attachmentName,
+      `certificate.${sanitizeSegment(format, "pdf")}`,
+   );
+   const timestamp = Math.floor(Date.now() / 1000);
+   const signature = buildUploadSignature(
+      {
+         attachment: safeAttachmentName,
+         public_id: safePublicId,
+         timestamp,
+         type: safeDeliveryType,
+      },
+      safeApiSecret,
+   );
+
+   const query = new URLSearchParams({
+      public_id: safePublicId,
+      timestamp: String(timestamp),
+      type: safeDeliveryType,
+      attachment: safeAttachmentName,
+      api_key: safeApiKey,
+      signature,
+   });
+
+   return `https://api.cloudinary.com/v1_1/${safeCloudName}/raw/download?${query.toString()}`;
 };
 
 const uploadCertificatePdfBuffer = async ({
@@ -756,8 +844,7 @@ const uploadCertificatePdfBuffer = async ({
    form.append("api_key", config.apiKey);
    form.append("signature", signature);
 
-   // Upload as image resource_type so PDF delivery supports attachment flags reliably.
-   const endpoint = `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`;
+   const endpoint = `https://api.cloudinary.com/v1_1/${config.cloudName}/raw/upload`;
    const response = await fetch(endpoint, { method: "POST", body: form });
    const payload = await response.json().catch(() => null);
 
@@ -778,7 +865,14 @@ const uploadCertificatePdfBuffer = async ({
    return {
       publicId: payload.public_id,
       secureUrl: payload.secure_url,
-      downloadUrl: buildCloudinaryDownloadUrl(payload.secure_url),
+      downloadUrl: buildCloudinaryDownloadUrl({
+         secureUrl: payload.secure_url,
+         cloudName: config.cloudName,
+         publicId: payload.public_id,
+         version: payload.version,
+         format: payload.format || "pdf",
+         attachmentName: `${safeCertificate}.pdf`,
+      }),
       bytes: payload.bytes,
       format: payload.format || "pdf",
       resourceType: payload.resource_type,

@@ -12,6 +12,7 @@ import {
    deleteCertificatePermanently,
    updateCertificateTrustScoreByHotel,
    getCertificateTimeline,
+   downloadCertificateFromEmailLink,
 } from "../controllers/lifecycleController.js";
 import {
    protect,
@@ -393,6 +394,8 @@ router.get(
    authorize("Admin", "Auditor"),
    getEligibleHotels,
 );
+
+router.get("/certificates/download", downloadCertificateFromEmailLink);
 
 /**
  * @swagger

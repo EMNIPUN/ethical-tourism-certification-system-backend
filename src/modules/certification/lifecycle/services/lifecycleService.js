@@ -12,7 +12,15 @@ import {
    sendCertificateRenewedEmail,
    sendCertificateRevokedEmail,
 } from "../../../../common/utils/emailService.js";
-import { generateAndUploadCertificatePdf } from "./certificateDocumentService.js";
+import {
+   createCertificateDownloadLink,
+   verifyCertificateDownloadToken,
+} from "../../../../common/utils/certificateDownloadToken.js";
+import {
+   generateAndUploadCertificatePdf,
+   buildCloudinaryDownloadUrl,
+   buildCloudinarySignedRawDownloadUrl,
+} from "./certificateDocumentService.js";
 import CertificateActivity, {
    CERTIFICATE_ACTIVITY_ACTOR,
    CERTIFICATE_ACTIVITY_EVENT,
@@ -123,6 +131,30 @@ const recordCertificateActivity = async ({
    });
 };
 
+const sanitizeDownloadFilename = (value, fallback = "certificate.pdf") => {
+   const safeName = String(value || "")
+      .trim()
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+   return safeName || fallback;
+};
+
+const getCloudinaryDownloadConfig = () => {
+   const cloudName = String(process.env.CLOUDINARY_CLOUD_NAME || "")
+      .trim()
+      .toLowerCase();
+   const apiKey = String(process.env.CLOUDINARY_API_KEY || "").trim();
+   const apiSecret = String(process.env.CLOUDINARY_API_SECRET || "").trim();
+
+   if (!cloudName || !apiKey || !apiSecret) {
+      return null;
+   }
+
+   return { cloudName, apiKey, apiSecret };
+};
+
 const getCertificateAssetForEmail = async ({
    hotel,
    certificate,
@@ -144,7 +176,16 @@ const getCertificateAssetForEmail = async ({
          throw error;
       }
 
-      return asset;
+      const presignedDownloadUrl = createCertificateDownloadLink({
+         certificateNumber: certificate?.certificateNumber,
+         certificateAsset: asset,
+      });
+
+      return {
+         ...asset,
+         downloadUrl: presignedDownloadUrl || asset.downloadUrl,
+         presignedDownloadUrl: presignedDownloadUrl || "",
+      };
    } catch (error) {
       console.error(
          `[CertificateDocument] Failed to generate/upload PDF for ${lifecycleEvent}:`,
@@ -161,6 +202,64 @@ const getCertificateAssetForEmail = async ({
 
       return null;
    }
+};
+
+export const resolveCertificateDownloadAssetFromToken = (token) => {
+   const payload = verifyCertificateDownloadToken(token);
+   const config = getCloudinaryDownloadConfig();
+
+   if (!config) {
+      const error = new Error(
+         "Cloudinary download credentials are not configured for certificate downloads",
+      );
+      error.statusCode = 500;
+      throw error;
+   }
+
+   const format = payload.format || "pdf";
+   const fileName = sanitizeDownloadFilename(
+      `${payload.certificateNumber || "certificate"}.pdf`,
+      "certificate.pdf",
+   );
+
+   const signedDownloadUrl = buildCloudinarySignedRawDownloadUrl({
+      cloudName: config.cloudName,
+      apiKey: config.apiKey,
+      apiSecret: config.apiSecret,
+      publicId: payload.publicId,
+      format,
+      attachmentName: fileName,
+      deliveryType: "upload",
+   });
+   const fallbackUrl = buildCloudinaryDownloadUrl({
+      cloudName: config.cloudName,
+      publicId: payload.publicId,
+      version: payload.version,
+      format,
+      attachmentName: fileName,
+   });
+   const downloadUrl = signedDownloadUrl || fallbackUrl;
+
+   if (!downloadUrl) {
+      const error = new Error("Could not build certificate download URL");
+      error.statusCode = 400;
+      throw error;
+   }
+
+   return {
+      downloadUrl,
+      fallbackUrl,
+      fileName,
+      contentType:
+         String(format).toLowerCase() === "pdf"
+            ? "application/pdf"
+            : "application/octet-stream",
+   };
+};
+
+export const resolveCertificateDownloadLinkFromToken = (token) => {
+   const resolved = resolveCertificateDownloadAssetFromToken(token);
+   return resolved.downloadUrl;
 };
 
 // --- Helper: Check and mark expiry ---

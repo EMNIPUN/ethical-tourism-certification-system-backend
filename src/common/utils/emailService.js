@@ -85,11 +85,6 @@ const buildCertificateLinkSection = (certificateAsset) => {
       <a href="${downloadUrl}" style="display:inline-block;padding:10px 14px;background:#0f766e;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;">
         Download Certificate PDF
       </a>
-      ${
-         certificateAsset?.secureUrl && certificateAsset.secureUrl !== downloadUrl
-            ? `<p style="margin:10px 0 0;font-size:12px;color:#64748b;">View link: <a href="${certificateAsset.secureUrl}" style="color:#0f766e;">Open certificate</a></p>`
-            : ""
-      }
     </div>`;
 };
 
