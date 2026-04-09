@@ -4,6 +4,8 @@ import {
    getCertificate,
    getHotelsWithCertificates,
    getEligibleHotels,
+   getCertificateOverviewStats,
+   getCertificateOverviewCharts,
    updateCertificateDetails,
    updateTrustScore,
    renewCertificate,
@@ -393,6 +395,146 @@ router.get(
    protect,
    authorize("Admin", "Auditor"),
    getEligibleHotels,
+);
+
+/**
+ * @swagger
+ * /certification/certificates/overview/stats:
+ *   get:
+ *     summary: Get certificate overview KPI stats
+ *     description: >
+ *       Returns summary metrics for certificate management overview dashboards,
+ *       including total and status counts, expiry pressure, eligible hotels to issue,
+ *       and average trust score for active certificates.
+ *     tags: [Certificate Lifecycle]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Overview KPI stats fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalCertificates:
+ *                       type: number
+ *                       example: 28
+ *                     activeCertificates:
+ *                       type: number
+ *                       example: 16
+ *                     expiredCertificates:
+ *                       type: number
+ *                       example: 4
+ *                     revokedCertificates:
+ *                       type: number
+ *                       example: 3
+ *                     inactiveCertificates:
+ *                       type: number
+ *                       example: 5
+ *                     riskStateCertificates:
+ *                       type: number
+ *                       example: 12
+ *                     expiringIn45Days:
+ *                       type: number
+ *                       example: 3
+ *                     eligibleToIssue:
+ *                       type: number
+ *                       example: 7
+ *                     averageActiveTrustScore:
+ *                       type: number
+ *                       example: 82
+ *       401:
+ *         description: Not authorized
+ *       403:
+ *         description: Insufficient role
+ */
+router.get(
+   "/certificates/overview/stats",
+   protect,
+   authorize("Admin", "Auditor"),
+   getCertificateOverviewStats,
+);
+
+/**
+ * @swagger
+ * /certification/certificates/overview/charts:
+ *   get:
+ *     summary: Get certificate overview chart datasets
+ *     description: >
+ *       Returns chart-friendly datasets for status distribution, active level distribution,
+ *       and a fixed 12-month issuance trend (ascending order with zero-filled months).
+ *     tags: [Certificate Lifecycle]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Overview chart datasets fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     statusDistribution:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           status:
+ *                             type: string
+ *                             enum: [ACTIVE, EXPIRED, REVOKED, INACTIVE]
+ *                           count:
+ *                             type: number
+ *                           percentage:
+ *                             type: number
+ *                     levelDistribution:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           level:
+ *                             type: string
+ *                             enum: [PLATINUM, GOLD, SILVER]
+ *                           count:
+ *                             type: number
+ *                           percentage:
+ *                             type: number
+ *                     monthlyIssuedTrend:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           monthKey:
+ *                             type: string
+ *                             example: "2026-04"
+ *                           label:
+ *                             type: string
+ *                             example: "Apr 2026"
+ *                           issuedCount:
+ *                             type: number
+ *                             example: 3
+ *       401:
+ *         description: Not authorized
+ *       403:
+ *         description: Insufficient role
+ */
+router.get(
+   "/certificates/overview/charts",
+   protect,
+   authorize("Admin", "Auditor"),
+   getCertificateOverviewCharts,
 );
 
 router.get("/certificates/download", downloadCertificateFromEmailLink);

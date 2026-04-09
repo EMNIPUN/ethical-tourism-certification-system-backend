@@ -47,6 +47,24 @@ export const getHotelsWithCertificates = asyncHandler(async (req, res) => {
    });
 });
 
+export const getCertificateOverviewStats = asyncHandler(async (req, res) => {
+   const stats = await lifecycleService.getCertificateOverviewStats();
+
+   res.status(200).json({
+      success: true,
+      data: stats,
+   });
+});
+
+export const getCertificateOverviewCharts = asyncHandler(async (req, res) => {
+   const charts = await lifecycleService.getCertificateOverviewCharts();
+
+   res.status(200).json({
+      success: true,
+      data: charts,
+   });
+});
+
 // Get a certificate by certificate number
 export const getCertificate = asyncHandler(async (req, res) => {
    const certificate = await lifecycleService.getCertificateByNumber(

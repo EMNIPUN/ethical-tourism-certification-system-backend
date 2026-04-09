@@ -90,6 +90,48 @@ const clampScore = (score) => {
    return Math.min(TRUST_SCORE.MAX, Math.max(TRUST_SCORE.MIN, score));
 };
 
+const OVERVIEW_EXPIRY_WINDOW_DAYS = 45;
+const OVERVIEW_TREND_MONTHS = 12;
+
+const toPercentage = (count, total) => {
+   if (!total) {
+      return 0;
+   }
+
+   return Math.round((count / total) * 100);
+};
+
+const toMonthKey = (date) => {
+   const year = date.getUTCFullYear();
+   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+   return `${year}-${month}`;
+};
+
+const buildRecentMonthSeries = (months = OVERVIEW_TREND_MONTHS) => {
+   const now = new Date();
+   const currentMonthStartUtc = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+   );
+
+   return Array.from({ length: months }, (_, index) => {
+      const offset = months - index - 1;
+      const start = new Date(currentMonthStartUtc);
+      start.setUTCMonth(start.getUTCMonth() - offset);
+      const monthKey = toMonthKey(start);
+      const label = start.toLocaleString("en-US", {
+         month: "short",
+         year: "numeric",
+         timeZone: "UTC",
+      });
+
+      return {
+         monthKey,
+         label,
+         start,
+      };
+   });
+};
+
 const buildActorContext = (actor = null, fallbackSource = CERTIFICATE_ACTIVITY_SOURCE.API) => {
    if (!actor) {
       return {
@@ -454,6 +496,177 @@ export const getAllHotelsWithCertificates = async (status = null) => {
       .sort({ createdAt: -1 });
 
    return certificates;
+};
+
+export const getCertificateOverviewStats = async () => {
+   const now = new Date();
+   const expiryWindowEnd = new Date(now);
+   expiryWindowEnd.setDate(expiryWindowEnd.getDate() + OVERVIEW_EXPIRY_WINDOW_DAYS);
+
+   const [totalCertificates, statusRows, activeTrustRows, expiringIn45Days, eligibleHotels] =
+      await Promise.all([
+         Certificate.countDocuments({}),
+         Certificate.aggregate([
+            {
+               $group: {
+                  _id: "$status",
+                  count: { $sum: 1 },
+               },
+            },
+         ]),
+         Certificate.aggregate([
+            {
+               $match: {
+                  status: CERTIFICATE_STATUS.ACTIVE,
+               },
+            },
+            {
+               $group: {
+                  _id: null,
+                  averageTrust: { $avg: "$trustScore" },
+               },
+            },
+         ]),
+         Certificate.countDocuments({
+            status: CERTIFICATE_STATUS.ACTIVE,
+            expiryDate: {
+               $gte: now,
+               $lte: expiryWindowEnd,
+            },
+         }),
+         getEligibleHotelsForCertification(),
+      ]);
+
+   const statusMap = new Map(
+      statusRows.map((row) => [String(row?._id || "").toUpperCase(), Number(row?.count) || 0]),
+   );
+
+   const activeCertificates = statusMap.get(CERTIFICATE_STATUS.ACTIVE) || 0;
+   const expiredCertificates = statusMap.get(CERTIFICATE_STATUS.EXPIRED) || 0;
+   const revokedCertificates = statusMap.get(CERTIFICATE_STATUS.REVOKED) || 0;
+   const inactiveCertificates = statusMap.get(CERTIFICATE_STATUS.INACTIVE) || 0;
+   const riskStateCertificates =
+      expiredCertificates + revokedCertificates + inactiveCertificates;
+   const eligibleToIssue = eligibleHotels.filter((item) => !item.alreadyCertified).length;
+   const averageActiveTrustScore = Math.round(activeTrustRows?.[0]?.averageTrust || 0);
+
+   return {
+      totalCertificates,
+      activeCertificates,
+      expiredCertificates,
+      revokedCertificates,
+      inactiveCertificates,
+      riskStateCertificates,
+      expiringIn45Days,
+      eligibleToIssue,
+      averageActiveTrustScore,
+   };
+};
+
+export const getCertificateOverviewCharts = async () => {
+   const [statusRows, activeLevelRows] = await Promise.all([
+      Certificate.aggregate([
+         {
+            $group: {
+               _id: "$status",
+               count: { $sum: 1 },
+            },
+         },
+      ]),
+      Certificate.aggregate([
+         {
+            $match: {
+               status: CERTIFICATE_STATUS.ACTIVE,
+            },
+         },
+         {
+            $group: {
+               _id: "$level",
+               count: { $sum: 1 },
+            },
+         },
+      ]),
+   ]);
+
+   const statusMap = new Map(
+      statusRows.map((row) => [String(row?._id || "").toUpperCase(), Number(row?.count) || 0]),
+   );
+   const totalCertificates = [...statusMap.values()].reduce((sum, count) => sum + count, 0);
+   const statusDistribution = Object.values(CERTIFICATE_STATUS).map((status) => {
+      const count = statusMap.get(status) || 0;
+      return {
+         status,
+         count,
+         percentage: toPercentage(count, totalCertificates),
+      };
+   });
+
+   const levelMap = new Map(
+      activeLevelRows.map((row) => [String(row?._id || "").toUpperCase(), Number(row?.count) || 0]),
+   );
+   const activeTotal = [...levelMap.values()].reduce((sum, count) => sum + count, 0);
+   const levelDistribution = Object.values(CERTIFICATE_LEVEL).map((level) => {
+      const count = levelMap.get(level) || 0;
+      return {
+         level,
+         count,
+         percentage: toPercentage(count, activeTotal),
+      };
+   });
+
+   const monthSeries = buildRecentMonthSeries();
+   const firstMonthStart = monthSeries[0]?.start;
+   let monthlyTrendRows = [];
+
+   if (firstMonthStart) {
+      monthlyTrendRows = await Certificate.aggregate([
+         {
+            $match: {
+               issuedDate: {
+                  $gte: firstMonthStart,
+               },
+            },
+         },
+         {
+            $group: {
+               _id: {
+                  year: {
+                     $year: {
+                        date: "$issuedDate",
+                        timezone: "UTC",
+                     },
+                  },
+                  month: {
+                     $month: {
+                        date: "$issuedDate",
+                        timezone: "UTC",
+                     },
+                  },
+               },
+               issuedCount: { $sum: 1 },
+            },
+         },
+      ]);
+   }
+
+   const trendMap = new Map(
+      monthlyTrendRows.map((row) => {
+         const monthKey = `${row._id.year}-${String(row._id.month).padStart(2, "0")}`;
+         return [monthKey, Number(row?.issuedCount) || 0];
+      }),
+   );
+
+   const monthlyIssuedTrend = monthSeries.map(({ monthKey, label }) => ({
+      monthKey,
+      label,
+      issuedCount: trendMap.get(monthKey) || 0,
+   }));
+
+   return {
+      statusDistribution,
+      levelDistribution,
+      monthlyIssuedTrend,
+   };
 };
 
 /**
