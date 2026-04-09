@@ -10,10 +10,12 @@ const getActor = (req, source = "API") => ({
 // Get all hotels eligible for certification
 export const getEligibleHotels = asyncHandler(async (req, res) => {
    const hotels = await lifecycleService.getEligibleHotelsForCertification();
+   const summary = lifecycleService.buildEligibleHotelsSummary(hotels);
 
    res.status(200).json({
       success: true,
       count: hotels.length,
+      summary,
       data: hotels,
    });
 });

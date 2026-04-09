@@ -350,6 +350,38 @@ router.get(
  *                 count:
  *                   type: number
  *                   example: 3
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                     totalEligibleHotels:
+ *                       type: number
+ *                       example: 12
+ *                     readyToIssue:
+ *                       type: number
+ *                       example: 8
+ *                     alreadyCertifiedCount:
+ *                       type: number
+ *                       example: 4
+ *                     recentlyAddedCount:
+ *                       type: number
+ *                       example: 5
+ *                     averageActiveValidityMonths:
+ *                       type: number
+ *                       example: 12
+ *                     businessTypeBreakdown:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           businessType:
+ *                             type: string
+ *                             example: "Hotel"
+ *                           count:
+ *                             type: number
+ *                             example: 6
+ *                     lastUpdatedAt:
+ *                       type: string
+ *                       format: date-time
  *                 data:
  *                   type: array
  *                   items:
@@ -379,6 +411,27 @@ router.get(
  *                         type: boolean
  *                         description: true if an ACTIVE certificate already exists
  *                         example: false
+ *                       activeCertificate:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           certificateNumber:
+ *                             type: string
+ *                             example: "CERT-M1A2B3C-D4E5F6"
+ *                           level:
+ *                             type: string
+ *                             enum: [PLATINUM, GOLD, SILVER]
+ *                           trustScore:
+ *                             type: number
+ *                           status:
+ *                             type: string
+ *                             enum: [ACTIVE, EXPIRED, REVOKED, INACTIVE]
+ *                           issuedDate:
+ *                             type: string
+ *                             format: date-time
+ *                           expiryDate:
+ *                             type: string
+ *                             format: date-time
  *                       createdAt:
  *                         type: string
  *                         format: date-time

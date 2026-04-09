@@ -1588,8 +1588,13 @@ export const getEligibleHotelsForCertification = async () => {
    const activeCerts = await Certificate.find({
       hotelId: { $in: hotelIds },
       status: CERTIFICATE_STATUS.ACTIVE,
-   }).select("hotelId");
+   }).select(
+      "hotelId certificateNumber level trustScore status issuedDate expiryDate",
+   );
 
+   const activeCertificatesByHotelId = new Map(
+      activeCerts.map((certificate) => [certificate.hotelId.toString(), certificate]),
+   );
    const certifiedHotelIds = new Set(
       activeCerts.map((c) => c.hotelId.toString()),
    );
@@ -1601,9 +1606,92 @@ export const getEligibleHotelsForCertification = async () => {
       hotelScore: request.hotelScore,
       auditScore: request.auditScore,
       alreadyCertified: certifiedHotelIds.has(request.hotelId?._id?.toString()),
+      activeCertificate: (() => {
+         const activeCertificate = activeCertificatesByHotelId.get(
+            request.hotelId?._id?.toString(),
+         );
+         if (!activeCertificate) {
+            return null;
+         }
+
+         return {
+            certificateNumber: activeCertificate.certificateNumber,
+            level: activeCertificate.level,
+            trustScore: activeCertificate.trustScore,
+            status: activeCertificate.status,
+            issuedDate: activeCertificate.issuedDate,
+            expiryDate: activeCertificate.expiryDate,
+         };
+      })(),
       createdAt: request.createdAt,
       updatedAt: request.updatedAt,
    }));
+};
+
+export const buildEligibleHotelsSummary = (eligibleHotels = []) => {
+   const totalEligibleHotels = eligibleHotels.length;
+   const readyToIssue = eligibleHotels.filter((item) => !item.alreadyCertified).length;
+   const alreadyCertifiedCount = totalEligibleHotels - readyToIssue;
+
+   const recentThreshold = new Date();
+   recentThreshold.setDate(recentThreshold.getDate() - 30);
+   const recentlyAddedCount = eligibleHotels.filter((item) => {
+      const createdAt = item?.createdAt ? new Date(item.createdAt) : null;
+      return createdAt && !Number.isNaN(createdAt.getTime()) && createdAt >= recentThreshold;
+   }).length;
+
+   const businessTypeCounts = new Map();
+   for (const item of eligibleHotels) {
+      const businessType = item?.hotel?.businessInfo?.businessType || "Unknown";
+      businessTypeCounts.set(
+         businessType,
+         (businessTypeCounts.get(businessType) || 0) + 1,
+      );
+   }
+
+   const businessTypeBreakdown = [...businessTypeCounts.entries()]
+      .map(([businessType, count]) => ({ businessType, count }))
+      .sort((a, b) => b.count - a.count);
+
+   const msPerMonth = 1000 * 60 * 60 * 24 * 30.44;
+   const activeValidityMonths = eligibleHotels
+      .map((item) => {
+         const issuedDate = item?.activeCertificate?.issuedDate
+            ? new Date(item.activeCertificate.issuedDate)
+            : null;
+         const expiryDate = item?.activeCertificate?.expiryDate
+            ? new Date(item.activeCertificate.expiryDate)
+            : null;
+
+         if (
+            !issuedDate ||
+            !expiryDate ||
+            Number.isNaN(issuedDate.getTime()) ||
+            Number.isNaN(expiryDate.getTime())
+         ) {
+            return null;
+         }
+
+         return Math.max(0, (expiryDate.getTime() - issuedDate.getTime()) / msPerMonth);
+      })
+      .filter((value) => typeof value === "number");
+
+   const averageActiveValidityMonths = activeValidityMonths.length
+      ? Math.round(
+           activeValidityMonths.reduce((sum, value) => sum + value, 0) /
+              activeValidityMonths.length,
+        )
+      : 0;
+
+   return {
+      totalEligibleHotels,
+      readyToIssue,
+      alreadyCertifiedCount,
+      recentlyAddedCount,
+      averageActiveValidityMonths,
+      businessTypeBreakdown,
+      lastUpdatedAt: new Date().toISOString(),
+   };
 };
 
 export const getCertificateTimeline = async (certificateId, options = {}) => {
