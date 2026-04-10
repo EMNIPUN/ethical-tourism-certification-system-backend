@@ -208,7 +208,7 @@ const drawMetricCard = ({
 
    doc
       .font("Helvetica-Bold")
-      .fontSize(8.2)
+      .fontSize(7.4)
       .fillColor("#64748b")
       .text(String(label || "").toUpperCase(), x + 10, y + 8, {
          width: width - 20,
@@ -217,13 +217,77 @@ const drawMetricCard = ({
 
    doc
       .font("Helvetica-Bold")
-      .fontSize(12)
+      .fontSize(10.6)
       .fillColor("#0f172a")
       .text(String(value ?? "N/A"), x + 10, y + 22, {
          width: width - 20,
          align: "left",
       });
    doc.restore();
+};
+
+const fitFontSizeToWidth = ({
+   doc,
+   text,
+   font,
+   maxFontSize,
+   minFontSize,
+   maxWidth,
+}) => {
+   const safeText = String(text || "N/A");
+   let fontSize = maxFontSize;
+
+   while (fontSize > minFontSize) {
+      doc.font(font).fontSize(fontSize);
+      if (doc.widthOfString(safeText) <= maxWidth) {
+         break;
+      }
+      fontSize -= 0.5;
+   }
+
+   return Math.max(minFontSize, Number(fontSize.toFixed(1)));
+};
+
+const fitFontSizeToBlock = ({
+   doc,
+   text,
+   font,
+   maxFontSize,
+   minFontSize,
+   width,
+   maxHeight,
+   align = "center",
+   lineGap = 0,
+}) => {
+   const safeText = String(text || "N/A");
+   let fontSize = maxFontSize;
+
+   while (fontSize > minFontSize) {
+      doc.font(font).fontSize(fontSize);
+      const height = doc.heightOfString(safeText, {
+         width,
+         align,
+         lineGap,
+      });
+
+      if (height <= maxHeight) {
+         return {
+            fontSize: Number(fontSize.toFixed(1)),
+            height,
+         };
+      }
+      fontSize -= 0.5;
+   }
+
+   doc.font(font).fontSize(minFontSize);
+   return {
+      fontSize: minFontSize,
+      height: doc.heightOfString(safeText, {
+         width,
+         align,
+         lineGap,
+      }),
+   };
 };
 
 const buildCertificateSnapshot = ({ certificate, hotel }) => {
@@ -312,7 +376,7 @@ const drawCertificatePdf = async ({ certificate, hotel }) => {
 
    doc
       .font("Helvetica-Bold")
-      .fontSize(8.4)
+      .fontSize(7.8)
       .fillColor("#f8fafc")
       .text("ETHICAL TOURISM CERTIFICATION REGISTER", ribbon.x + 14, ribbon.y + 13, {
          width: ribbon.width / 2,
@@ -321,7 +385,7 @@ const drawCertificatePdf = async ({ certificate, hotel }) => {
 
    doc
       .font("Helvetica-Bold")
-      .fontSize(8.4)
+      .fontSize(7.8)
       .fillColor("#f8fafc")
       .text(`RECORD: ${snapshot.certificateNumber}`, ribbon.x + ribbon.width / 2, ribbon.y + 13, {
          width: ribbon.width / 2 - 14,
@@ -361,7 +425,7 @@ const drawCertificatePdf = async ({ certificate, hotel }) => {
    doc.restore();
 
    const badge = {
-      centerX: sheet.x + sheet.width - 66,
+      centerX: sheet.x + sheet.width - 72,
       centerY: sheet.y + 62,
    };
 
@@ -443,94 +507,143 @@ const drawCertificatePdf = async ({ certificate, hotel }) => {
       });
 
    let cursorY = sheet.y + 16;
-   const textWidth = sheet.width - 40;
-   const textX = sheet.x + 20;
+   const textX = sheet.x + 24;
+   const textRightEdge = badge.centerX - 60;
+   const textWidth = Math.max(420, textRightEdge - textX);
 
    doc
       .font("Helvetica-Bold")
-      .fontSize(11)
+      .fontSize(10)
       .fillColor("#475569")
       .text("CERTIFICATE OF COMPLIANCE", textX, cursorY, {
          width: textWidth,
          align: "center",
          characterSpacing: 1.1,
       });
+   cursorY += doc.heightOfString("CERTIFICATE OF COMPLIANCE", {
+      width: textWidth,
+      align: "center",
+      characterSpacing: 1.1,
+   }) + 12;
 
-   cursorY += 23;
+   const certificateTitle = "Ethical Tourism Assurance Certificate";
+   const titleFontSize = fitFontSizeToWidth({
+      doc,
+      text: certificateTitle,
+      font: "Times-Bold",
+      maxFontSize: 28,
+      minFontSize: 19,
+      maxWidth: textWidth,
+   });
    doc
       .font("Times-Bold")
-      .fontSize(41)
+      .fontSize(titleFontSize)
       .fillColor("#0f172a")
-      .text("Ethical Tourism Assurance Certificate", textX, cursorY, {
+      .text(certificateTitle, textX, cursorY, {
          width: textWidth,
          align: "center",
+         lineGap: 2,
       });
+   cursorY += doc.heightOfString(certificateTitle, {
+      width: textWidth,
+      align: "center",
+      lineGap: 2,
+   }) + 12;
 
-   cursorY += 56;
+   const introText =
+      "Awarded by the Ethical Tourism Certification Authority to recognize verified sustainability, service quality, and governance standards.";
+   const introWidth = textWidth - 36;
    doc
       .font("Helvetica")
-      .fontSize(13.8)
+      .fontSize(11.2)
       .fillColor("#334155")
-      .text(
-         "Awarded by the Ethical Tourism Certification Authority to recognize verified sustainability, service quality, and governance standards.",
-         textX + 40,
-         cursorY,
-         {
-            width: textWidth - 80,
-            align: "center",
-         },
-      );
+      .text(introText, textX + 18, cursorY, {
+         width: introWidth,
+         align: "center",
+         lineGap: 2,
+      });
+   cursorY += doc.heightOfString(introText, {
+      width: introWidth,
+      align: "center",
+      lineGap: 2,
+   }) + 18;
 
-   cursorY += 48;
    doc
       .font("Helvetica-Bold")
-      .fontSize(10)
+      .fontSize(9)
       .fillColor("#475569")
       .text("THIS CERTIFIES THAT", textX, cursorY, {
          width: textWidth,
          align: "center",
          characterSpacing: 1.2,
       });
+   cursorY += doc.heightOfString("THIS CERTIFIES THAT", {
+      width: textWidth,
+      align: "center",
+      characterSpacing: 1.2,
+   }) + 10;
 
-   cursorY += 18;
+   const hotelNameWidth = textWidth - 24;
+   const fittedHotelName = fitFontSizeToBlock({
+      doc,
+      text: snapshot.hotelName,
+      font: "Times-Bold",
+      maxFontSize: 29,
+      minFontSize: 19,
+      width: hotelNameWidth,
+      maxHeight: 68,
+      align: "center",
+      lineGap: 2,
+   });
    doc
       .font("Times-Bold")
-      .fontSize(42)
+      .fontSize(fittedHotelName.fontSize)
       .fillColor("#0f172a")
-      .text(snapshot.hotelName, textX + 20, cursorY, {
-         width: textWidth - 40,
+      .text(snapshot.hotelName, textX + 12, cursorY, {
+         width: hotelNameWidth,
          align: "center",
+         lineGap: 2,
       });
+   cursorY += fittedHotelName.height + 10;
 
-   cursorY += 48;
+   const addressWidth = textWidth - 42;
    doc
       .font("Helvetica")
-      .fontSize(13)
+      .fontSize(10.8)
       .fillColor("#64748b")
-      .text(snapshot.hotelAddress, textX + 40, cursorY, {
-         width: textWidth - 80,
+      .text(snapshot.hotelAddress, textX + 21, cursorY, {
+         width: addressWidth,
          align: "center",
+         lineGap: 1.5,
       });
+   cursorY += doc.heightOfString(snapshot.hotelAddress, {
+      width: addressWidth,
+      align: "center",
+      lineGap: 1.5,
+   }) + 14;
 
-   cursorY += 33;
+   const achievementText =
+      "has successfully met the current evaluation criteria and is recognized as a certified tourism establishment under the Ethical Tourism Certification Program.";
+   const achievementWidth = textWidth - 30;
    doc
       .font("Helvetica")
-      .fontSize(13)
+      .fontSize(11)
       .fillColor("#334155")
-      .text(
-         "has successfully met the current evaluation criteria and is recognized as a certified tourism establishment under the Ethical Tourism Certification Program.",
-         textX + 32,
-         cursorY,
-         {
-            width: textWidth - 64,
-            align: "center",
-         },
-      );
+      .text(achievementText, textX + 15, cursorY, {
+         width: achievementWidth,
+         align: "center",
+         lineGap: 2,
+      });
+   cursorY += doc.heightOfString(achievementText, {
+      width: achievementWidth,
+      align: "center",
+      lineGap: 2,
+   });
 
    const metricCardHeight = 54;
    const metricGap = 9;
    const metricX = sheet.x + 20;
-   const metricY = Math.max(cursorY + 54, sheet.y + 292);
+   const metricY = Math.max(cursorY + 36, sheet.y + 292);
    const metricWidth = (sheet.width - 40 - metricGap * 2) / 3;
 
    const metrics = [
@@ -577,7 +690,7 @@ const drawCertificatePdf = async ({ certificate, hotel }) => {
       .fill(theme.accent);
    doc
       .font("Helvetica")
-      .fontSize(10.4)
+      .fontSize(9.4)
       .fillColor("#1e293b")
       .text(noteText, noteX + 12, noteY + 9, {
          width: noteWidth - 24,
@@ -601,7 +714,7 @@ const drawCertificatePdf = async ({ certificate, hotel }) => {
          .fill("#be123c");
       doc
          .font("Helvetica")
-         .fontSize(10)
+         .fontSize(9.2)
          .fillColor("#881337")
          .text(reasonText, noteX + 12, reasonY + 8, {
             width: noteWidth - 24,
@@ -634,7 +747,7 @@ const drawCertificatePdf = async ({ certificate, hotel }) => {
 
    doc
       .font("Times-Bold")
-      .fontSize(9.4)
+      .fontSize(8.8)
       .fillColor("#0f172a")
       .text("Director, Certification Council", signatureBlock.x + 15, signatureBlock.y + 29, {
          width: signatureBlock.width - 20,
@@ -642,7 +755,7 @@ const drawCertificatePdf = async ({ certificate, hotel }) => {
       });
    doc
       .font("Helvetica-Bold")
-      .fontSize(8.6)
+      .fontSize(7.8)
       .fillColor("#475569")
       .text("ISSUING AUTHORITY", signatureBlock.x + 15, signatureBlock.y + 43, {
          width: signatureBlock.width - 20,
