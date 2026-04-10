@@ -1,10 +1,7 @@
 import * as lifecycleService from "../services/lifecycleService.js";
 import asyncHandler from "../../../../common/utils/asyncHandler.js";
 
-/**
- * Get all hotels eligible for certification (both scores passed).
- * GET /certification/certificates/eligible
- */
+// Get all hotels eligible for certification
 export const getEligibleHotels = asyncHandler(async (req, res) => {
    const hotels = await lifecycleService.getEligibleHotelsForCertification();
 
@@ -15,16 +12,8 @@ export const getEligibleHotels = asyncHandler(async (req, res) => {
    });
 });
 
-/**
- * lifecycleController.js
- *
- * Thin controller layer — delegates all business logic to lifecycleService.js.
- */
 
-/**
- * Issue a new certificate.
- * POST /certification/certificates
- */
+// Issue a new certificate.
 export const issueCertificate = asyncHandler(async (req, res) => {
    const { hotelId, validityPeriodInMonths } = req.body;
 
@@ -36,10 +25,7 @@ export const issueCertificate = asyncHandler(async (req, res) => {
    res.status(201).json({ success: true, data: certificate });
 });
 
-/**
- * Get all hotels with their certificate details.
- * GET /certification/certificates
- */
+// Get all hotels with their certificate details
 export const getHotelsWithCertificates = asyncHandler(async (req, res) => {
    const { status } = req.query;
 
@@ -54,10 +40,7 @@ export const getHotelsWithCertificates = asyncHandler(async (req, res) => {
    });
 });
 
-/**
- * Get a certificate by certificate number (public).
- * GET /certification/certificates/:certificateNumber
- */
+// Get a certificate by certificate number
 export const getCertificate = asyncHandler(async (req, res) => {
    const certificate = await lifecycleService.getCertificateByNumber(
       req.params.certificateNumber,
@@ -66,10 +49,7 @@ export const getCertificate = asyncHandler(async (req, res) => {
    res.status(200).json({ success: true, data: certificate });
 });
 
-/**
- * Update trust score.
- * PUT /certification/certificates/:id/trustscore
- */
+// Update trust score
 export const updateTrustScore = asyncHandler(async (req, res) => {
    const { scoreChange, reason } = req.body;
 
@@ -82,10 +62,7 @@ export const updateTrustScore = asyncHandler(async (req, res) => {
    res.status(200).json({ success: true, data: certificate });
 });
 
-/**
- * Renew a certificate.
- * PUT /certification/certificates/:id/renew
- */
+// Renew a certificate
 export const renewCertificate = asyncHandler(async (req, res) => {
    const { validityPeriodInMonths } = req.body;
 
@@ -99,10 +76,7 @@ export const renewCertificate = asyncHandler(async (req, res) => {
    res.status(200).json({ success: true, data: certificate });
 });
 
-/**
- * Inactivate (soft-delete) a certificate.
- * DELETE /certification/certificates/:id
- */
+// Inactivate (soft-delete) a certificate
 export const inactivateCertificate = asyncHandler(async (req, res) => {
    const { reason } = req.body;
 
@@ -114,10 +88,7 @@ export const inactivateCertificate = asyncHandler(async (req, res) => {
    res.status(200).json({ success: true, data: certificate });
 });
 
-/**
- * Revoke a certificate.
- * PUT /certification/certificates/:id/revoke
- */
+// Revoke a certificate
 export const revokeCertificate = asyncHandler(async (req, res) => {
    const { reason } = req.body;
 
@@ -129,10 +100,7 @@ export const revokeCertificate = asyncHandler(async (req, res) => {
    res.status(200).json({ success: true, data: certificate });
 });
 
-/**
- * Update certificate trust score based on feedback factors.
- * PATCH /certification/certificates/hotel/:hotelId/update-score
- */
+// Update certificate trust score based on feedback factors
 export const updateCertificateTrustScoreByHotel = asyncHandler(
    async (req, res) => {
       const { averageRating, reviewCount } = req.body;

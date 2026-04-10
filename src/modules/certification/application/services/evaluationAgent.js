@@ -3,9 +3,16 @@ import OpenAI from 'openai';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy-init to avoid crash when env vars are missing at module load time
+let openai = null;
+function getOpenAI() {
+    if (!openai) {
+        openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+    }
+    return openai;
+}
 
 const SERPAPI_KEY = process.env.SERPAPI_KEY;
 const isE2EMockMode = () => process.env.E2E_MOCK_MODE === 'true';
@@ -212,7 +219,7 @@ ${JSON.stringify(searchResults, null, 2)}`
     ];
 
     try {
-        const response = await openai.chat.completions.create({
+        const response = await getOpenAI().chat.completions.create({
             model: "gpt-4o", // gpt-4o-mini is also fine here if speed/cost is prioritized
             messages: messages,
             response_format: { type: "json_object" }
@@ -269,7 +276,7 @@ ${JSON.stringify(reviews, null, 2)}`
     ];
 
     try {
-        const response = await openai.chat.completions.create({
+        const response = await getOpenAI().chat.completions.create({
             model: "gpt-4o",
             messages: messages,
             response_format: { type: "json_object" }

@@ -11,10 +11,19 @@ mainApp.use('/api/v1', app);
 let dbReady = false;
 
 export default async function handler(req, res) {
-    if (!dbReady) {
-        await connectDB();
-        dbReady = true;
-    }
+    try {
+        if (!dbReady) {
+            await connectDB();
+            dbReady = true;
+        }
 
-    return mainApp(req, res);
+        return mainApp(req, res);
+    } catch (error) {
+        console.error('Serverless function error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal Server Error',
+            message: process.env.NODE_ENV !== 'production' ? error.message : undefined,
+        });
+    }
 }

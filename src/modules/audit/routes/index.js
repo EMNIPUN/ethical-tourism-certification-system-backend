@@ -1,9 +1,9 @@
 import express from 'express';
+import auditRoutes from './auditRoutes.js';
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
-    res.send('Audit Module - No routes defined yet.');
-});
+// Audit routes
+router.use('/', auditRoutes);
 
 export default router;
