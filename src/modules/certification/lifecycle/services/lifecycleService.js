@@ -491,7 +491,7 @@ export const getAllHotelsWithCertificates = async (status = null) => {
    const certificates = await Certificate.find(filter)
       .populate(
          "hotelId",
-         "businessInfo.name businessInfo.contact.address businessInfo.contact.email businessInfo.contact.phone businessInfo.businessType businessInfo.contact.website",
+         "businessInfo.name businessInfo.contact.address businessInfo.contact.email businessInfo.contact.phone businessInfo.businessType businessInfo.contact.website googleMapsData.thumbnail",
       )
       .sort({ createdAt: -1 });
 
