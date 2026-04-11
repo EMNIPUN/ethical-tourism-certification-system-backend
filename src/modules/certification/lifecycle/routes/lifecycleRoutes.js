@@ -3,19 +3,12 @@ import {
    issueCertificate,
    getCertificate,
    getHotelsWithCertificates,
-   getOwnerCertificates,
    getEligibleHotels,
-   getCertificateOverviewStats,
-   getCertificateOverviewCharts,
-   updateCertificateDetails,
    updateTrustScore,
    renewCertificate,
    revokeCertificate,
    inactivateCertificate,
-   deleteCertificatePermanently,
    updateCertificateTrustScoreByHotel,
-   getCertificateTimeline,
-   downloadCertificateFromEmailLink,
 } from "../controllers/lifecycleController.js";
 import {
    protect,
@@ -24,7 +17,6 @@ import {
 import { validate } from "../../../../common/middleware/validateMiddleware.js";
 import {
    issueCertificateSchema,
-   updateCertificateDetailsSchema,
    updateTrustScoreSchema,
    renewCertificateSchema,
    revokeCertificateSchema,
@@ -115,95 +107,6 @@ const router = express.Router();
  *         error:
  *           type: string
  *           example: "Error message"
- *     CertificateTimelineItem:
- *       type: object
- *       properties:
- *         _id:
- *           type: string
- *           example: "67e80a33448fce08d316d9f1"
- *         certificateId:
- *           type: string
- *           example: "665f1a2b3c4d5e6f7a8b9c0d"
- *         hotelId:
- *           type: string
- *           example: "665f1a2b3c4d5e6f7a8b9c0e"
- *         eventType:
- *           type: string
- *           enum:
- *             - CERTIFICATE_ISSUED
- *             - TRUST_SCORE_UPDATED
- *             - LEVEL_CHANGED
- *             - STATUS_CHANGED
- *             - CERTIFICATE_RENEWED
- *             - CERTIFICATE_REVOKED
- *             - CERTIFICATE_EXPIRED
- *             - CERTIFICATE_INACTIVATED
- *             - AUTO_REVOCATION_TRIGGERED
- *             - FEEDBACK_SYNC_APPLIED
- *           example: "TRUST_SCORE_UPDATED"
- *         source:
- *           type: string
- *           enum: [API, SYSTEM, FEEDBACK_SYNC]
- *           example: "API"
- *         actorType:
- *           type: string
- *           enum: [SYSTEM, USER]
- *           example: "USER"
- *         actorId:
- *           type: string
- *           nullable: true
- *           example: "67e7fdf4ad50153a9da14d6b"
- *         summary:
- *           type: string
- *           example: "Trust score recalculated from feedback"
- *         changes:
- *           type: object
- *           additionalProperties: true
- *           description: Before and after snapshots for changed fields
- *         metadata:
- *           type: object
- *           additionalProperties: true
- *           description: Additional context for the event
- *         eventTime:
- *           type: string
- *           format: date-time
- *         createdAt:
- *           type: string
- *           format: date-time
- *         updatedAt:
- *           type: string
- *           format: date-time
- *     CertificateTimelineResponse:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *           example: true
- *         data:
- *           type: object
- *           properties:
- *             certificateId:
- *               type: string
- *               example: "665f1a2b3c4d5e6f7a8b9c0d"
- *             pagination:
- *               type: object
- *               properties:
- *                 page:
- *                   type: number
- *                   example: 1
- *                 limit:
- *                   type: number
- *                   example: 20
- *                 total:
- *                   type: number
- *                   example: 17
- *                 hasNext:
- *                   type: boolean
- *                   example: false
- *             items:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/CertificateTimelineItem'
  */
 
 /**
@@ -318,13 +221,6 @@ router.post(
  *         description: Insufficient role
  */
 router.get(
-   "/certificates/owner",
-   protect,
-   authorize("Hotel Owner"),
-   getOwnerCertificates,
-);
-
-router.get(
    "/certificates",
    protect,
    authorize("Admin", "Auditor"),
@@ -358,38 +254,6 @@ router.get(
  *                 count:
  *                   type: number
  *                   example: 3
- *                 summary:
- *                   type: object
- *                   properties:
- *                     totalEligibleHotels:
- *                       type: number
- *                       example: 12
- *                     readyToIssue:
- *                       type: number
- *                       example: 8
- *                     alreadyCertifiedCount:
- *                       type: number
- *                       example: 4
- *                     recentlyAddedCount:
- *                       type: number
- *                       example: 5
- *                     averageActiveValidityMonths:
- *                       type: number
- *                       example: 12
- *                     businessTypeBreakdown:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           businessType:
- *                             type: string
- *                             example: "Hotel"
- *                           count:
- *                             type: number
- *                             example: 6
- *                     lastUpdatedAt:
- *                       type: string
- *                       format: date-time
  *                 data:
  *                   type: array
  *                   items:
@@ -419,27 +283,6 @@ router.get(
  *                         type: boolean
  *                         description: true if an ACTIVE certificate already exists
  *                         example: false
- *                       activeCertificate:
- *                         type: object
- *                         nullable: true
- *                         properties:
- *                           certificateNumber:
- *                             type: string
- *                             example: "CERT-M1A2B3C-D4E5F6"
- *                           level:
- *                             type: string
- *                             enum: [PLATINUM, GOLD, SILVER]
- *                           trustScore:
- *                             type: number
- *                           status:
- *                             type: string
- *                             enum: [ACTIVE, EXPIRED, REVOKED, INACTIVE]
- *                           issuedDate:
- *                             type: string
- *                             format: date-time
- *                           expiryDate:
- *                             type: string
- *                             format: date-time
  *                       createdAt:
  *                         type: string
  *                         format: date-time
@@ -457,148 +300,6 @@ router.get(
    authorize("Admin", "Auditor"),
    getEligibleHotels,
 );
-
-/**
- * @swagger
- * /certification/certificates/overview/stats:
- *   get:
- *     summary: Get certificate overview KPI stats
- *     description: >
- *       Returns summary metrics for certificate management overview dashboards,
- *       including total and status counts, expiry pressure, eligible hotels to issue,
- *       and average trust score for active certificates.
- *     tags: [Certificate Lifecycle]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Overview KPI stats fetched successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     totalCertificates:
- *                       type: number
- *                       example: 28
- *                     activeCertificates:
- *                       type: number
- *                       example: 16
- *                     expiredCertificates:
- *                       type: number
- *                       example: 4
- *                     revokedCertificates:
- *                       type: number
- *                       example: 3
- *                     inactiveCertificates:
- *                       type: number
- *                       example: 5
- *                     riskStateCertificates:
- *                       type: number
- *                       example: 12
- *                     expiringIn45Days:
- *                       type: number
- *                       example: 3
- *                     eligibleToIssue:
- *                       type: number
- *                       example: 7
- *                     averageActiveTrustScore:
- *                       type: number
- *                       example: 82
- *       401:
- *         description: Not authorized
- *       403:
- *         description: Insufficient role
- */
-router.get(
-   "/certificates/overview/stats",
-   protect,
-   authorize("Admin", "Auditor"),
-   getCertificateOverviewStats,
-);
-
-/**
- * @swagger
- * /certification/certificates/overview/charts:
- *   get:
- *     summary: Get certificate overview chart datasets
- *     description: >
- *       Returns chart-friendly datasets for status distribution, active level distribution,
- *       and a fixed 12-month issuance trend (ascending order with zero-filled months).
- *     tags: [Certificate Lifecycle]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Overview chart datasets fetched successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 data:
- *                   type: object
- *                   properties:
- *                     statusDistribution:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           status:
- *                             type: string
- *                             enum: [ACTIVE, EXPIRED, REVOKED, INACTIVE]
- *                           count:
- *                             type: number
- *                           percentage:
- *                             type: number
- *                     levelDistribution:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           level:
- *                             type: string
- *                             enum: [PLATINUM, GOLD, SILVER]
- *                           count:
- *                             type: number
- *                           percentage:
- *                             type: number
- *                     monthlyIssuedTrend:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           monthKey:
- *                             type: string
- *                             example: "2026-04"
- *                           label:
- *                             type: string
- *                             example: "Apr 2026"
- *                           issuedCount:
- *                             type: number
- *                             example: 3
- *       401:
- *         description: Not authorized
- *       403:
- *         description: Insufficient role
- */
-router.get(
-   "/certificates/overview/charts",
-   protect,
-   authorize("Admin", "Auditor"),
-   getCertificateOverviewCharts,
-);
-
-router.get("/certificates/download", downloadCertificateFromEmailLink);
 
 /**
  * @swagger
@@ -632,108 +333,6 @@ router.get("/certificates/download", downloadCertificateFromEmailLink);
  *               $ref: '#/components/schemas/CertificateErrorResponse'
  */
 router.get("/certificates/:certificateNumber", getCertificate);
-
-router.put(
-   "/certificates/:id",
-   protect,
-   authorize("Admin"),
-   validate(updateCertificateDetailsSchema),
-   updateCertificateDetails,
-);
-
-/**
- * @swagger
- * /certification/certificates/{id}/timeline:
- *   get:
- *     summary: Get certificate activity timeline
- *     description: >
- *       Returns activity timeline events for a specific certificate ordered by event time.
- *       Includes changes for issue, score updates, level changes, status changes, renewals,
- *       revocations, inactivation, expiry, and feedback sync actions.
- *     tags: [Certificate Lifecycle]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Certificate document ID
- *         example: "665f1a2b3c4d5e6f7a8b9c0d"
- *       - in: query
- *         name: page
- *         required: false
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - in: query
- *         name: limit
- *         required: false
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 20
- *       - in: query
- *         name: order
- *         required: false
- *         schema:
- *           type: string
- *           enum: [asc, desc]
- *           default: desc
- *       - in: query
- *         name: from
- *         required: false
- *         schema:
- *           type: string
- *           format: date-time
- *         description: Start datetime filter (inclusive)
- *       - in: query
- *         name: to
- *         required: false
- *         schema:
- *           type: string
- *           format: date-time
- *         description: End datetime filter (inclusive)
- *       - in: query
- *         name: eventType
- *         required: false
- *         schema:
- *           type: string
- *         description: Comma-separated event type list (for example TRUST_SCORE_UPDATED,STATUS_CHANGED)
- *     responses:
- *       200:
- *         description: Certificate timeline fetched successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/CertificateTimelineResponse'
- *       400:
- *         description: Invalid certificate ID, query values, or event type filter
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/CertificateErrorResponse'
- *       401:
- *         description: Not authorized
- *       403:
- *         description: Insufficient role
- *       404:
- *         description: Certificate not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/CertificateErrorResponse'
- */
-
-router.get(
-   "/certificates/:id/timeline",
-   protect,
-   authorize("Admin", "Auditor", "Hotel Owner"),
-   getCertificateTimeline,
-);
 
 /**
  * @swagger
@@ -926,11 +525,11 @@ router.put(
  * @swagger
  * /certification/certificates/{id}:
  *   delete:
- *     summary: Permanently delete a certificate (hard-delete)
+ *     summary: Inactivate (soft-delete) a certificate
  *     description: >
- *       Permanently removes the certificate record from the database.
- *       This is a hard-delete operation intended for admin/test cleanup flows
- *       where a certificate must be re-issued from scratch.
+ *       Marks a certificate as INACTIVE — a soft-delete operation representing
+ *       the CRUD delete action. The certificate record is retained in the database
+ *       but is permanently deactivated. Cannot be applied to an already inactive certificate.
  *       Admin only.
  *     tags: [Certificate Lifecycle]
  *     security:
@@ -943,15 +542,28 @@ router.put(
  *           type: string
  *         description: The certificate document ID
  *         example: "665f1a2b3c4d5e6f7a8b9c0d"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Reason for inactivating the certificate
+ *                 example: "Hotel permanently closed"
  *     responses:
  *       200:
- *         description: Certificate permanently deleted
+ *         description: Certificate inactivated successfully
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/CertificateResponse'
  *       400:
- *         description: Invalid certificate ID
+ *         description: Certificate is already inactive
  *         content:
  *           application/json:
  *             schema:
@@ -965,13 +577,6 @@ router.put(
  */
 router.delete(
    "/certificates/:id",
-   protect,
-   authorize("Admin"),
-   deleteCertificatePermanently,
-);
-
-router.put(
-   "/certificates/:id/inactivate",
    protect,
    authorize("Admin"),
    validate(inactivateCertificateSchema),
