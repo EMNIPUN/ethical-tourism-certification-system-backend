@@ -24,6 +24,8 @@ connectDB().catch((error) => {
 });
 
 const mainApp = express();
+import cors from 'cors';
+mainApp.use(cors());
 const PORT = process.env.PORT || 5000;
 
 mainApp.use('/api/v1', app);
