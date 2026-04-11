@@ -319,7 +319,7 @@ router.post(
 router.get(
    "/certificates",
    protect,
-   authorize("Admin", "Auditor"),
+   authorize("Admin", "Auditor", "Hotel Owner"),
    getHotelsWithCertificates,
 );
 
@@ -446,7 +446,7 @@ router.get(
 router.get(
    "/certificates/eligible",
    protect,
-   authorize("Admin", "Auditor"),
+   authorize("Admin", "Auditor", "Hotel Owner"),
    getEligibleHotels,
 );
 
@@ -511,7 +511,7 @@ router.get(
 router.get(
    "/certificates/overview/stats",
    protect,
-   authorize("Admin", "Auditor"),
+   authorize("Admin", "Auditor", "Hotel Owner"),
    getCertificateOverviewStats,
 );
 
@@ -586,7 +586,7 @@ router.get(
 router.get(
    "/certificates/overview/charts",
    protect,
-   authorize("Admin", "Auditor"),
+   authorize("Admin", "Auditor", "Hotel Owner"),
    getCertificateOverviewCharts,
 );
 
@@ -723,7 +723,7 @@ router.put(
 router.get(
    "/certificates/:id/timeline",
    protect,
-   authorize("Admin", "Auditor"),
+   authorize("Admin", "Auditor", "Hotel Owner"),
    getCertificateTimeline,
 );
 
