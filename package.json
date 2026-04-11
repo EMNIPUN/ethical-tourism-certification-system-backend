@@ -4,6 +4,9 @@
   "description": "",
   "license": "ISC",
   "author": "",
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "main": "server.js",
   "scripts": {
