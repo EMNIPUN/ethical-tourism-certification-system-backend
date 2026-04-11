@@ -226,7 +226,40 @@ ${JSON.stringify(searchResults, null, 2)}`
         });
 
         const rawContent = response.choices[0].message.content;
-        return JSON.parse(rawContent).candidates || [];
+        const parsed = JSON.parse(rawContent);
+        const candidates = Array.isArray(parsed?.candidates) ? parsed.candidates : [];
+
+        // The LLM sometimes omits or renames fields. Backfill missing data from SerpApi results.
+        const searchMap = new Map(
+            (Array.isArray(searchResults) ? searchResults : []).map((res) => {
+                const key = res?.place_id;
+                return [key, res];
+            }),
+        );
+
+        return candidates
+            .map((candidate) => {
+                if (!candidate || typeof candidate !== 'object') {
+                    return null;
+                }
+
+                // Normalize common alternate key names.
+                const normalizedPlaceId = candidate.place_id || candidate.placeId || candidate.data_id;
+                if (normalizedPlaceId && !candidate.place_id) {
+                    candidate.place_id = normalizedPlaceId;
+                }
+
+                const match = normalizedPlaceId ? searchMap.get(normalizedPlaceId) : null;
+                if (match && typeof match === 'object') {
+                    candidate.title = candidate.title || match.title;
+                    candidate.address = candidate.address || match.address;
+                    candidate.thumbnail = candidate.thumbnail || match.thumbnail;
+                    candidate.gps = candidate.gps || match.gps;
+                }
+
+                return candidate;
+            })
+            .filter(Boolean);
 
     } catch (error) {
         console.error("Agent Search Error:", error);
