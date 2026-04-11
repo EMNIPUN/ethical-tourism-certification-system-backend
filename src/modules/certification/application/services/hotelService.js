@@ -75,7 +75,7 @@ export const createHotel = async (data) => {
  * @param {string|null} placeId - The selected Google place_id, or null if none matched.
  * @returns {Promise<Object>} Object containing the updated hotel and the new hotelRequest.
  */
-export const confirmHotelMatch = async (hotelId, placeId) => {
+export const confirmHotelMatch = async (hotelId, placeId, clientThumbnail) => {
     const hotel = await Hotel.findById(hotelId);
     if (!hotel) {
         throw new Error("Hotel not found");
@@ -88,24 +88,31 @@ export const confirmHotelMatch = async (hotelId, placeId) => {
         try {
             console.log(`Evaluating reviews for place_id: ${placeId}`);
 
-            // Fetch map details automatically using placeId
+            // Fetch map details for GPS/address (thumbnail used as fallback if client didn't provide one)
             const mapDetails = await getGoogleMapsDetails(placeId);
             if (mapDetails) {
                 hotel.googleMapsData = {
-                    placeId: mapDetails.place_id || placeId,
-                    thumbnail: mapDetails.thumbnail,
-                    address: mapDetails.address,
-                    gps: mapDetails.gps
+                    placeId:   mapDetails.place_id || placeId,
+                    // Prefer thumbnail already available from the candidate list (no extra API call needed)
+                    thumbnail: clientThumbnail || mapDetails.thumbnail,
+                    address:   mapDetails.address,
+                    gps:       mapDetails.gps
+                };
+            } else if (clientThumbnail) {
+                // mapDetails call failed but we still have the thumbnail from the candidate picker
+                hotel.googleMapsData = {
+                    placeId:   placeId,
+                    thumbnail: clientThumbnail,
                 };
             }
 
             evaluationResult = await evaluateHotelReviews(placeId, {
-                name: hotel.businessInfo?.name,
+                name:    hotel.businessInfo?.name,
                 address: hotel.businessInfo?.contact?.address,
-                type: hotel.businessInfo?.businessType
+                type:    hotel.businessInfo?.businessType
             });
 
-            hotel.scoring.googleReviewScore = evaluationResult.score || 0;
+            hotel.scoring.googleReviewScore    = evaluationResult.score || 0;
             hotel.scoring.aiReviewJustification = evaluationResult.justification || '';
 
             await hotel.save();
@@ -114,7 +121,7 @@ export const confirmHotelMatch = async (hotelId, placeId) => {
             console.log("AI Review Evaluation completed:", evaluationResult);
         } catch (err) {
             console.error("AI Review Evaluation failed:", err);
-            hotelScoreStatus = 'failed'; // Fail if agent crashes on found hotel
+            hotelScoreStatus = 'failed';
         }
     }
 
@@ -122,11 +129,12 @@ export const confirmHotelMatch = async (hotelId, placeId) => {
     const hotelRequest = await HotelRequest.create({
         hotelId: hotel._id,
         hotelScore: { status: hotelScoreStatus },
-        auditScore: { status: 'pending' } // Audit happens later
+        auditScore: { status: 'pending' }
     });
 
     return { hotel, hotelRequest, evaluationResult };
 };
+
 
 /**
  * Retrieves a list of hotels based on query parameters.

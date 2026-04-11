@@ -88,10 +88,10 @@ export const createHotel = asyncHandler(async (req, res) => {
  * Expects { placeId: "..." } or { placeId: null } in req.body.
  */
 export const confirmMatch = asyncHandler(async (req, res) => {
-    const { placeId } = req.body;
+    const { placeId, thumbnail: clientThumbnail } = req.body;
     const { id: hotelId } = req.params;
 
-    const { hotel, hotelRequest } = await hotelService.confirmHotelMatch(hotelId, placeId);
+    const { hotel, hotelRequest } = await hotelService.confirmHotelMatch(hotelId, placeId, clientThumbnail);
 
     const hasPassed = hotelRequest.hotelScore.status === 'passed';
     const message = hotelRequest.hotelScore.status === 'pending'
