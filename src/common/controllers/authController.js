@@ -85,6 +85,28 @@ export const getMe = async (req, res, next) => {
     }
 };
 
+// @desc    Get all users (with optional role filtering)
+// @route   GET /api/v1/auth/users
+// @access  Private/Admin
+export const getUsers = async (req, res, next) => {
+    try {
+        const filter = {};
+        if (req.query.role) {
+            filter.role = req.query.role;
+        }
+
+        const users = await User.find(filter);
+
+        res.status(200).json({
+            success: true,
+            count: users.length,
+            data: users
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
 // Get token from model, create cookie and send response
 const sendTokenResponse = (user, statusCode, res) => {
     // Create token
