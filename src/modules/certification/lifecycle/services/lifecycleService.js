@@ -429,7 +429,7 @@ export const issueCertificate = async (hotelId, validityPeriodInMonths, actor = 
       level,
    });
 
-    await recordCertificateActivity({
+   await recordCertificateActivity({
       certificate,
       eventType: CERTIFICATE_ACTIVITY_EVENT.CERTIFICATE_ISSUED,
       summary: "Certificate issued",
@@ -489,6 +489,61 @@ export const getAllHotelsWithCertificates = async (status = null) => {
    }
 
    const certificates = await Certificate.find(filter)
+      .populate(
+         "hotelId",
+         "businessInfo.name businessInfo.contact.address businessInfo.contact.email businessInfo.contact.phone businessInfo.businessType businessInfo.contact.website googleMapsData.thumbnail",
+      )
+      .sort({ createdAt: -1 });
+
+   return certificates;
+};
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Get certificates belonging to the currently logged-in hotel owner.
+ * Ownership is inferred by matching the hotel's contact email with the user's email.
+ */
+export const getOwnerCertificatesByEmail = async (ownerEmail, status = null) => {
+   const normalizedEmail = String(ownerEmail || "").trim().toLowerCase();
+   if (!normalizedEmail) {
+      const error = new Error("Owner email is required");
+      error.statusCode = 400;
+      throw error;
+   }
+
+   const filter = {};
+   if (status) {
+      const validStatuses = Object.values(CERTIFICATE_STATUS);
+      if (!validStatuses.includes(status.toUpperCase())) {
+         const error = new Error(
+            `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+         );
+         error.statusCode = 400;
+         throw error;
+      }
+      filter.status = status.toUpperCase();
+   }
+
+   const hotels = await Hotel.find(
+      {
+         "businessInfo.contact.email": {
+            $regex: `^${escapeRegex(normalizedEmail)}$`,
+            $options: "i",
+         },
+      },
+      "_id",
+   );
+
+   const hotelIds = hotels.map((hotel) => hotel._id);
+   if (!hotelIds.length) {
+      return [];
+   }
+
+   const certificates = await Certificate.find({
+      ...filter,
+      hotelId: { $in: hotelIds },
+   })
       .populate(
          "hotelId",
          "businessInfo.name businessInfo.contact.address businessInfo.contact.email businessInfo.contact.phone businessInfo.businessType businessInfo.contact.website googleMapsData.thumbnail",
@@ -815,8 +870,8 @@ export const updateCertificateDetails = async (certificateId, payload, actor = n
          field === "hotelId"
             ? currentRaw?.toString() || null
             : currentRaw instanceof Date
-              ? currentRaw.toISOString()
-              : currentRaw ?? null;
+               ? currentRaw.toISOString()
+               : currentRaw ?? null;
 
       const normalizedPrevious =
          previousValue instanceof Date
@@ -1577,8 +1632,8 @@ export const updateCertificateTrustScore = async (
 export const getEligibleHotelsForCertification = async () => {
    // Find all hotel requests where both scores are passed
    const eligibleRequests = await HotelRequest.find({
-      hotelScore: {status : "passed"},
-      auditScore: {status : "passed"},
+      hotelScore: { status: "passed" },
+      auditScore: { status: "passed" },
    }).populate("hotelId");
 
    if (!eligibleRequests.length) return [];
@@ -1678,9 +1733,9 @@ export const buildEligibleHotelsSummary = (eligibleHotels = []) => {
 
    const averageActiveValidityMonths = activeValidityMonths.length
       ? Math.round(
-           activeValidityMonths.reduce((sum, value) => sum + value, 0) /
-              activeValidityMonths.length,
-        )
+         activeValidityMonths.reduce((sum, value) => sum + value, 0) /
+         activeValidityMonths.length,
+      )
       : 0;
 
    return {

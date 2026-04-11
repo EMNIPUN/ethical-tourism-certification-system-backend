@@ -115,6 +115,19 @@ export const confirmMatch = asyncHandler(async (req, res) => {
     });
 });
 
+export const getHotelCandidates = asyncHandler(async (req, res) => {
+    const { id: hotelId } = req.params;
+    const requesterEmail = req.user?.email;
+
+    const candidates = await hotelService.getHotelCandidates(hotelId, requesterEmail);
+
+    res.status(200).json({
+        success: true,
+        count: candidates.length,
+        data: candidates,
+    });
+});
+
 /**
  * Retrieves a list of hotels via the API.
  * 

@@ -92,27 +92,27 @@ export const confirmHotelMatch = async (hotelId, placeId, clientThumbnail) => {
             const mapDetails = await getGoogleMapsDetails(placeId);
             if (mapDetails) {
                 hotel.googleMapsData = {
-                    placeId:   mapDetails.place_id || placeId,
+                    placeId: mapDetails.place_id || placeId,
                     // Prefer thumbnail already available from the candidate list (no extra API call needed)
                     thumbnail: clientThumbnail || mapDetails.thumbnail,
-                    address:   mapDetails.address,
-                    gps:       mapDetails.gps
+                    address: mapDetails.address,
+                    gps: mapDetails.gps
                 };
             } else if (clientThumbnail) {
                 // mapDetails call failed but we still have the thumbnail from the candidate picker
                 hotel.googleMapsData = {
-                    placeId:   placeId,
+                    placeId: placeId,
                     thumbnail: clientThumbnail,
                 };
             }
 
             evaluationResult = await evaluateHotelReviews(placeId, {
-                name:    hotel.businessInfo?.name,
+                name: hotel.businessInfo?.name,
                 address: hotel.businessInfo?.contact?.address,
-                type:    hotel.businessInfo?.businessType
+                type: hotel.businessInfo?.businessType
             });
 
-            hotel.scoring.googleReviewScore    = evaluationResult.score || 0;
+            hotel.scoring.googleReviewScore = evaluationResult.score || 0;
             hotel.scoring.aiReviewJustification = evaluationResult.justification || '';
 
             await hotel.save();
@@ -133,6 +133,37 @@ export const confirmHotelMatch = async (hotelId, placeId, clientThumbnail) => {
     });
 
     return { hotel, hotelRequest, evaluationResult };
+};
+
+export const getHotelCandidates = async (hotelId, requesterEmail) => {
+    const hotel = await Hotel.findById(hotelId);
+    if (!hotel) {
+        const error = new Error('Hotel not found');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const normalizedRequesterEmail = String(requesterEmail || '').trim().toLowerCase();
+    const hotelEmail = String(hotel.businessInfo?.contact?.email || '').trim().toLowerCase();
+
+    if (normalizedRequesterEmail && hotelEmail && normalizedRequesterEmail !== hotelEmail) {
+        const error = new Error('Not authorized to access this hotel');
+        error.statusCode = 403;
+        throw error;
+    }
+
+    let candidates = [];
+    try {
+        candidates = await searchHotelCandidates({
+            name: hotel.businessInfo?.name,
+            address: hotel.businessInfo?.contact?.address,
+            type: hotel.businessInfo?.businessType,
+        });
+    } catch (err) {
+        console.error('Candidate search failed:', err);
+    }
+
+    return candidates;
 };
 
 

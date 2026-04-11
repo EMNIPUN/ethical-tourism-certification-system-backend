@@ -3,6 +3,7 @@ import {
    issueCertificate,
    getCertificate,
    getHotelsWithCertificates,
+   getOwnerCertificates,
    getEligibleHotels,
    getCertificateOverviewStats,
    getCertificateOverviewCharts,
@@ -317,9 +318,16 @@ router.post(
  *         description: Insufficient role
  */
 router.get(
+   "/certificates/owner",
+   protect,
+   authorize("Hotel Owner"),
+   getOwnerCertificates,
+);
+
+router.get(
    "/certificates",
    protect,
-   authorize("Admin", "Auditor", "Hotel Owner"),
+   authorize("Admin", "Auditor"),
    getHotelsWithCertificates,
 );
 
@@ -446,7 +454,7 @@ router.get(
 router.get(
    "/certificates/eligible",
    protect,
-   authorize("Admin", "Auditor", "Hotel Owner"),
+   authorize("Admin", "Auditor"),
    getEligibleHotels,
 );
 
@@ -511,7 +519,7 @@ router.get(
 router.get(
    "/certificates/overview/stats",
    protect,
-   authorize("Admin", "Auditor", "Hotel Owner"),
+   authorize("Admin", "Auditor"),
    getCertificateOverviewStats,
 );
 
@@ -586,7 +594,7 @@ router.get(
 router.get(
    "/certificates/overview/charts",
    protect,
-   authorize("Admin", "Auditor", "Hotel Owner"),
+   authorize("Admin", "Auditor"),
    getCertificateOverviewCharts,
 );
 

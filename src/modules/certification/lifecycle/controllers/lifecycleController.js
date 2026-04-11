@@ -49,6 +49,22 @@ export const getHotelsWithCertificates = asyncHandler(async (req, res) => {
    });
 });
 
+export const getOwnerCertificates = asyncHandler(async (req, res) => {
+   const { status } = req.query;
+   const ownerEmail = req.user?.email;
+
+   const certificates = await lifecycleService.getOwnerCertificatesByEmail(
+      ownerEmail,
+      status || null,
+   );
+
+   res.status(200).json({
+      success: true,
+      count: certificates.length,
+      data: certificates,
+   });
+});
+
 export const getCertificateOverviewStats = asyncHandler(async (req, res) => {
    const stats = await lifecycleService.getCertificateOverviewStats();
 
@@ -179,9 +195,9 @@ export const getCertificateTimeline = asyncHandler(async (req, res) => {
       eventType:
          typeof eventType === "string" && eventType.trim()
             ? eventType
-                 .split(",")
-                 .map((item) => item.trim())
-                 .filter(Boolean)
+               .split(",")
+               .map((item) => item.trim())
+               .filter(Boolean)
             : undefined,
    });
 
