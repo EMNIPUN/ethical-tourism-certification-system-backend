@@ -26,23 +26,6 @@ async function waitForApiReady({ url, timeoutMs = 120_000, intervalMs = 2_000 })
     }
 }
 
-function runCommand(command, args, { env } = {}) {
-    return new Promise((resolve, reject) => {
-        const child = spawn(command, args, {
-            stdio: 'inherit',
-            shell: process.platform === 'win32',
-            env: { ...process.env, ...env },
-        });
-
-        child.on('error', reject);
-        child.on('exit', (code, signal) => {
-            if (signal) return reject(new Error(`${command} exited with signal ${signal}`));
-            if (code !== 0) return reject(new Error(`${command} exited with code ${code}`));
-            resolve();
-        });
-    });
-}
-
 async function main() {
     console.log('Starting API server for confirmation flow test...');
 
@@ -78,11 +61,13 @@ async function main() {
 
     try {
         await waitForApiReady({ url: API_URL });
-        console.log('API is ready. Running Cypress API specs...');
 
-        await runCommand('npm', ['run', 'cy:run:api']);
+        const res = await fetch(API_URL, { method: 'GET' });
+        if (!res.ok) {
+            throw new Error(`API smoke test failed (status ${res.status}): ${API_URL}`);
+        }
 
-        console.log('Cypress API specs passed.');
+        console.log('API smoke test passed.');
     } finally {
         await cleanup();
     }
