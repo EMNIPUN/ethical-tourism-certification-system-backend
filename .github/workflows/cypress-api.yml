@@ -25,7 +25,17 @@ jobs:
       E2E_MOCK_MODE: "true"
 
     steps:
-      - name: Checkout
+      # NOTE: For pull_request workflows GitHub checks out a synthetic merge commit by default.
+      # If package-lock.json is auto-merged, it can become inconsistent and break `npm ci`.
+      # We explicitly test the PR head commit to ensure dependency installs match the committed lockfile.
+      - name: Checkout (PR head)
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Checkout (push)
+        if: github.event_name != 'pull_request'
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -37,6 +47,11 @@ jobs:
       - name: Debug dependency lock state
         run: |
           set -euxo pipefail
+          echo "event: ${GITHUB_EVENT_NAME}"
+          echo "ref: ${GITHUB_REF}"
+          echo "sha: ${GITHUB_SHA}"
+          echo "head_ref: ${GITHUB_HEAD_REF:-}"
+          echo "base_ref: ${GITHUB_BASE_REF:-}"
           echo "pwd: $(pwd)"
           node -v
           npm -v
