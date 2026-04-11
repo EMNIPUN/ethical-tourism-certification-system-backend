@@ -15,6 +15,7 @@ function getOpenAI() {
 }
 
 const SERPAPI_KEY = process.env.SERPAPI_KEY;
+const isE2EMockMode = () => process.env.E2E_MOCK_MODE === 'true';
 
 // 1. Search Tool
 const searchHotel = async ({ query, location }) => {
@@ -63,6 +64,19 @@ const searchHotel = async ({ query, location }) => {
 };
 
 export const getGoogleMapsDetails = async (placeId) => {
+    if (isE2EMockMode()) {
+        return {
+            place_id: placeId || 'mock-place-1',
+            title: 'Mock Google Maps Hotel',
+            address: 'Mock Address, Bali, Indonesia',
+            thumbnail: 'https://example.com/mock-hotel-thumbnail.jpg',
+            gps: {
+                latitude: -8.4095,
+                longitude: 115.1889
+            }
+        };
+    }
+
     try {
         const response = await getJson({
             engine: "google_maps",
@@ -126,6 +140,33 @@ const fetchReviews = async ({ place_id }) => {
  * Step 1: Search for candidates and return them based on confidence
  */
 export const searchHotelCandidates = async (hotelRegistrationData) => {
+    if (isE2EMockMode()) {
+        return [
+            {
+                place_id: 'mock-place-1',
+                title: `${hotelRegistrationData.name} - Mock Match`,
+                address: hotelRegistrationData.address,
+                thumbnail: 'https://example.com/mock-hotel-thumbnail.jpg',
+                confidence: 96,
+                gps: {
+                    latitude: -8.4095,
+                    longitude: 115.1889
+                }
+            },
+            {
+                place_id: 'mock-place-2',
+                title: `${hotelRegistrationData.name} - Alternative Mock`,
+                address: `${hotelRegistrationData.address} (Alt)`,
+                thumbnail: 'https://example.com/mock-hotel-thumbnail-alt.jpg',
+                confidence: 84,
+                gps: {
+                    latitude: -8.4101,
+                    longitude: 115.1902
+                }
+            }
+        ];
+    }
+
     const searchArgs = {
         query: hotelRegistrationData.name,
         location: hotelRegistrationData.address
@@ -197,6 +238,13 @@ ${JSON.stringify(searchResults, null, 2)}`
  * Step 2: Evaluate a confirmed place_id's reviews to generate a score and justification
  */
 export const evaluateHotelReviews = async (placeId, hotelRegistrationData) => {
+    if (isE2EMockMode()) {
+        return {
+            score: 78,
+            justification: `Mock evaluation for ${hotelRegistrationData.name}. Reviews indicate generally strong sustainability and ethical service practices.`
+        };
+    }
+
     const reviews = await fetchReviews({ place_id: placeId });
 
     if (!Array.isArray(reviews) || reviews.length === 0) {
