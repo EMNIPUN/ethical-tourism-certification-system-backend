@@ -3,6 +3,7 @@ import {
    issueCertificate,
    getCertificate,
    getHotelsWithCertificates,
+   getOwnerCertificates,
    getEligibleHotels,
    updateTrustScore,
    renewCertificate,
@@ -225,6 +226,14 @@ router.get(
    protect,
    authorize("Admin", "Auditor"),
    getHotelsWithCertificates,
+);
+
+// Hotel Owner: list only certificates for hotels owned by the logged-in user
+router.get(
+   "/certificates/owner",
+   protect,
+   authorize("Hotel Owner"),
+   getOwnerCertificates,
 );
 
 /**

@@ -195,7 +195,60 @@ export const getAllHotelsWithCertificates = async (status = null) => {
    const certificates = await Certificate.find(filter)
       .populate(
          "hotelId",
-         "businessInfo.name businessInfo.contact.address businessInfo.contact.email businessInfo.contact.phone businessInfo.businessType businessInfo.contact.website",
+         "businessInfo.name businessInfo.contact.address businessInfo.contact.email businessInfo.contact.phone businessInfo.businessType businessInfo.contact.website googleMapsData.thumbnail",
+      )
+      .sort({ createdAt: -1 });
+
+   return certificates;
+};
+
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Get certificates for the currently logged-in Hotel Owner.
+ *
+ * Since the User model/JWT payload doesn't currently store a hotelId,
+ * ownership is derived by matching the user's email to Hotel.businessInfo.contact.email.
+ *
+ * @param {string} ownerEmail - Logged-in user's email.
+ * @param {string|null} status - Optional CERTIFICATE_STATUS filter.
+ * @returns {Promise<Array>} Array of certificate documents with populated hotel data.
+ */
+export const getOwnerCertificatesByEmail = async (ownerEmail, status = null) => {
+   if (!ownerEmail) {
+      const error = new Error("User email is required");
+      error.statusCode = 400;
+      throw error;
+   }
+
+   const filter = {};
+   if (status) {
+      const validStatuses = Object.values(CERTIFICATE_STATUS);
+      if (!validStatuses.includes(status.toUpperCase())) {
+         const error = new Error(
+            `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
+         );
+         error.statusCode = 400;
+         throw error;
+      }
+      filter.status = status.toUpperCase();
+   }
+
+   const ownerEmailRegex = new RegExp(`^${escapeRegExp(ownerEmail)}$`, "i");
+   const hotels = await Hotel.find(
+      { "businessInfo.contact.email": ownerEmailRegex },
+      "_id",
+   );
+
+   if (!hotels.length) {
+      return [];
+   }
+
+   const hotelIds = hotels.map((h) => h._id);
+   const certificates = await Certificate.find({ ...filter, hotelId: { $in: hotelIds } })
+      .populate(
+         "hotelId",
+         "businessInfo.name businessInfo.contact.address businessInfo.contact.email businessInfo.contact.phone businessInfo.businessType businessInfo.contact.website googleMapsData.thumbnail",
       )
       .sort({ createdAt: -1 });
 

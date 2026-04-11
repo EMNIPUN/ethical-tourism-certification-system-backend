@@ -40,6 +40,22 @@ export const getHotelsWithCertificates = asyncHandler(async (req, res) => {
    });
 });
 
+// Get certificates for the currently logged-in Hotel Owner
+export const getOwnerCertificates = asyncHandler(async (req, res) => {
+   const { status } = req.query;
+
+   const certificates = await lifecycleService.getOwnerCertificatesByEmail(
+      req.user?.email,
+      status || null,
+   );
+
+   res.status(200).json({
+      success: true,
+      count: certificates.length,
+      data: certificates,
+   });
+});
+
 // Get a certificate by certificate number
 export const getCertificate = asyncHandler(async (req, res) => {
    const certificate = await lifecycleService.getCertificateByNumber(
