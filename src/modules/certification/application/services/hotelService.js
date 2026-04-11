@@ -75,7 +75,7 @@ export const createHotel = async (data) => {
  * @param {string|null} placeId - The selected Google place_id, or null if none matched.
  * @returns {Promise<Object>} Object containing the updated hotel and the new hotelRequest.
  */
-export const confirmHotelMatch = async (hotelId, placeId) => {
+export const confirmHotelMatch = async (hotelId, placeId, clientThumbnail) => {
     const hotel = await Hotel.findById(hotelId);
     if (!hotel) {
         throw new Error("Hotel not found");
@@ -88,14 +88,21 @@ export const confirmHotelMatch = async (hotelId, placeId) => {
         try {
             console.log(`Evaluating reviews for place_id: ${placeId}`);
 
-            // Fetch map details automatically using placeId
+            // Fetch map details for GPS/address (thumbnail used as fallback if client didn't provide one)
             const mapDetails = await getGoogleMapsDetails(placeId);
             if (mapDetails) {
                 hotel.googleMapsData = {
                     placeId: mapDetails.place_id || placeId,
-                    thumbnail: mapDetails.thumbnail,
+                    // Prefer thumbnail already available from the candidate list (no extra API call needed)
+                    thumbnail: clientThumbnail || mapDetails.thumbnail,
                     address: mapDetails.address,
                     gps: mapDetails.gps
+                };
+            } else if (clientThumbnail) {
+                // mapDetails call failed but we still have the thumbnail from the candidate picker
+                hotel.googleMapsData = {
+                    placeId: placeId,
+                    thumbnail: clientThumbnail,
                 };
             }
 
@@ -114,7 +121,7 @@ export const confirmHotelMatch = async (hotelId, placeId) => {
             console.log("AI Review Evaluation completed:", evaluationResult);
         } catch (err) {
             console.error("AI Review Evaluation failed:", err);
-            hotelScoreStatus = 'failed'; // Fail if agent crashes on found hotel
+            hotelScoreStatus = 'failed';
         }
     }
 
@@ -122,11 +129,43 @@ export const confirmHotelMatch = async (hotelId, placeId) => {
     const hotelRequest = await HotelRequest.create({
         hotelId: hotel._id,
         hotelScore: { status: hotelScoreStatus },
-        auditScore: { status: 'pending' } // Audit happens later
+        auditScore: { status: 'pending' }
     });
 
     return { hotel, hotelRequest, evaluationResult };
 };
+
+export const getHotelCandidates = async (hotelId, requesterEmail) => {
+    const hotel = await Hotel.findById(hotelId);
+    if (!hotel) {
+        const error = new Error('Hotel not found');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const normalizedRequesterEmail = String(requesterEmail || '').trim().toLowerCase();
+    const hotelEmail = String(hotel.businessInfo?.contact?.email || '').trim().toLowerCase();
+
+    if (normalizedRequesterEmail && hotelEmail && normalizedRequesterEmail !== hotelEmail) {
+        const error = new Error('Not authorized to access this hotel');
+        error.statusCode = 403;
+        throw error;
+    }
+
+    let candidates = [];
+    try {
+        candidates = await searchHotelCandidates({
+            name: hotel.businessInfo?.name,
+            address: hotel.businessInfo?.contact?.address,
+            type: hotel.businessInfo?.businessType,
+        });
+    } catch (err) {
+        console.error('Candidate search failed:', err);
+    }
+
+    return candidates;
+};
+
 
 /**
  * Retrieves a list of hotels based on query parameters.
@@ -138,14 +177,24 @@ export const confirmHotelMatch = async (hotelId, placeId) => {
 export const getAllHotels = async (query) => {
     // 1. Filtering
     const queryObj = { ...query };
-    const excludedFields = ['page', 'sort', 'limit', 'fields'];
+    const excludedFields = ['page', 'sort', 'limit', 'fields', 'search'];
     excludedFields.forEach((el) => delete queryObj[el]);
 
-    // Advanced filtering (gt, gte, lt, lte)
+    // Advanced filtering (gt, gte, lt, lte, regex, options)
     let queryStr = JSON.stringify(queryObj);
-    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match} `);
+    queryStr = queryStr.replace(/\b(gte|gt|lte|lt|regex|options)\b/g, (match) => `$${match}`);
 
-    let mongooseQuery = Hotel.find(JSON.parse(queryStr));
+    const mongoFilter = JSON.parse(queryStr);
+
+    // Dedicated full-text name search via ?search=...
+    if (query.search && query.search.trim()) {
+        mongoFilter['businessInfo.name'] = {
+            $regex: query.search.trim(),
+            $options: 'i',
+        };
+    }
+
+    let mongooseQuery = Hotel.find(mongoFilter);
 
     // 2. Sorting
     if (query.sort) {
