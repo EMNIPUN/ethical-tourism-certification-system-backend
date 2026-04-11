@@ -138,14 +138,24 @@ export const confirmHotelMatch = async (hotelId, placeId) => {
 export const getAllHotels = async (query) => {
     // 1. Filtering
     const queryObj = { ...query };
-    const excludedFields = ['page', 'sort', 'limit', 'fields'];
+    const excludedFields = ['page', 'sort', 'limit', 'fields', 'search'];
     excludedFields.forEach((el) => delete queryObj[el]);
 
-    // Advanced filtering (gt, gte, lt, lte)
+    // Advanced filtering (gt, gte, lt, lte, regex, options)
     let queryStr = JSON.stringify(queryObj);
-    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match} `);
+    queryStr = queryStr.replace(/\b(gte|gt|lte|lt|regex|options)\b/g, (match) => `$${match}`);
 
-    let mongooseQuery = Hotel.find(JSON.parse(queryStr));
+    const mongoFilter = JSON.parse(queryStr);
+
+    // Dedicated full-text name search via ?search=...
+    if (query.search && query.search.trim()) {
+        mongoFilter['businessInfo.name'] = {
+            $regex: query.search.trim(),
+            $options: 'i',
+        };
+    }
+
+    let mongooseQuery = Hotel.find(mongoFilter);
 
     // 2. Sorting
     if (query.sort) {
