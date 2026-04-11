@@ -1,0 +1,32 @@
+config:
+  target: "{{ $processEnvironment.API_BASE_URL }}"
+  phases:
+    - duration: 60
+      arrivalRate: 2
+      name: Warm up
+    - duration: 120
+      arrivalRate: 5
+      rampTo: 10
+      name: Ramp up
+    - duration: 180
+      arrivalRate: 10
+      name: Load test
+  defaults:
+    headers:
+      Authorization: "Bearer {{ authToken }}"
+      Content-Type: application/json
+      Accept: application/json
+  processor: "./search-performance.processor.cjs"
+
+scenarios:
+  - name: Search contact discovery flow
+    flow:
+      - function: "ensureAuthToken"
+      - get:
+          url: "/api/v1/hotels-search/contacts"
+      - think: 1
+      - get:
+          url: "/api/v1/hotels-search/contacts/search?location=colombo"
+      - think: 1
+      - get:
+          url: "/api/v1/hotels-search/ai-recommendations"
