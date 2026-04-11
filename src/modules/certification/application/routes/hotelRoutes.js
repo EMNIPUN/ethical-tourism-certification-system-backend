@@ -6,7 +6,6 @@ import {
    updateHotel,
    deleteHotel,
    confirmMatch,
-   getHotelCandidates,
 } from "../controllers/hotelController.js";
 import {
    protect,
@@ -469,13 +468,6 @@ router.post(
    protect,
    authorize("Hotel Owner", "Admin"),
    confirmMatch
-);
-
-router.get(
-   "/:id/candidates",
-   protect,
-   authorize("Hotel Owner", "Admin"),
-   getHotelCandidates,
 );
 
 export default router;
