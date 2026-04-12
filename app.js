@@ -8,6 +8,7 @@ import { errorHandler } from './src/common/middleware/errorMiddleware.js';
 import searchModuleRoutes from './src/modules/search/routes/index.js';
 import certificationAppRoutes from './src/modules/certification/application/routes/index.js';
 import certificationLifecycleRoutes from './src/modules/certification/lifecycle/routes/index.js';
+import ownerCertificateRoutes from './src/modules/certification/ownerCertificate/routes/index.js';
 import auditModuleRoutes from './src/modules/audit/routes/index.js';
 import authRoutes from './src/common/routes/authRoutes.js';
 
@@ -24,7 +25,7 @@ const corsOptions = {
       'http://localhost:5000',
       process.env.FRONTEND_URL || 'https://ethical-tourism-certification-system.vercel.app'
     ];
-    
+
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -47,6 +48,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/hotels-search', searchModuleRoutes);
 app.use('/hotels', certificationAppRoutes);
 app.use('/certification', certificationLifecycleRoutes);
+app.use('/certification', ownerCertificateRoutes);
 app.use('/audits', auditModuleRoutes);
 app.use('/auth', authRoutes);
 

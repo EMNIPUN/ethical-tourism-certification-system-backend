@@ -500,17 +500,36 @@ export const getAllHotelsWithCertificates = async (status = null) => {
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const getOwnerHotelIds = async ({ ownerUserId, ownerEmail }) => {
+   const conditions = [];
+
+   if (ownerUserId) {
+      conditions.push({ ownerUserId });
+   }
+
+   const normalizedEmail = String(ownerEmail || "").trim().toLowerCase();
+   if (normalizedEmail) {
+      conditions.push({
+         "businessInfo.contact.email": {
+            $regex: `^${escapeRegex(normalizedEmail)}$`,
+            $options: "i",
+         },
+      });
+   }
+
+   if (!conditions.length) {
+      return [];
+   }
+
+   const hotels = await Hotel.find({ $or: conditions }, "_id");
+   return hotels.map((hotel) => hotel._id);
+};
+
 /**
  * Get certificates belonging to the currently logged-in hotel owner.
  * Ownership is inferred by matching the hotel's contact email with the user's email.
  */
-export const getOwnerCertificatesByEmail = async (ownerEmail, status = null) => {
-   const normalizedEmail = String(ownerEmail || "").trim().toLowerCase();
-   if (!normalizedEmail) {
-      const error = new Error("Owner email is required");
-      error.statusCode = 400;
-      throw error;
-   }
+export const getOwnerCertificatesByEmail = async (ownerEmail, status = null, ownerUserId = null) => {
 
    const filter = {};
    if (status) {
@@ -525,17 +544,7 @@ export const getOwnerCertificatesByEmail = async (ownerEmail, status = null) => 
       filter.status = status.toUpperCase();
    }
 
-   const hotels = await Hotel.find(
-      {
-         "businessInfo.contact.email": {
-            $regex: `^${escapeRegex(normalizedEmail)}$`,
-            $options: "i",
-         },
-      },
-      "_id",
-   );
-
-   const hotelIds = hotels.map((hotel) => hotel._id);
+   const hotelIds = await getOwnerHotelIds({ ownerUserId, ownerEmail });
    if (!hotelIds.length) {
       return [];
    }
@@ -551,6 +560,83 @@ export const getOwnerCertificatesByEmail = async (ownerEmail, status = null) => 
       .sort({ createdAt: -1 });
 
    return certificates;
+};
+
+/**
+ * Get hotel applications for the currently logged-in hotel owner that have
+ * passed the initial (AI) check but are still pending audit/manual review.
+ *
+ * Ownership is inferred by matching the hotel's contact email with the user's email.
+ */
+export const getOwnerPendingReviewHotelsByEmail = async (ownerEmail, ownerUserId = null) => {
+   const hotelIds = await getOwnerHotelIds({ ownerUserId, ownerEmail });
+   if (!hotelIds.length) {
+      return [];
+   }
+
+   // Pending review bucket for owners:
+   // - hotelScore must be passed
+   // - auditScore can be pending (awaiting audit) OR passed (awaiting certificate issuance)
+   const reviewRequests = await HotelRequest.find({
+      hotelId: { $in: hotelIds },
+      "hotelScore.status": "passed",
+      "auditScore.status": { $in: ["pending", "passed", "approved"] },
+   }).populate("hotelId");
+
+   if (!reviewRequests.length) {
+      return [];
+   }
+
+   const requestHotelIds = reviewRequests
+      .map((request) => request.hotelId?._id)
+      .filter(Boolean);
+
+   const activeCerts = await Certificate.find({
+      hotelId: { $in: requestHotelIds },
+      status: CERTIFICATE_STATUS.ACTIVE,
+   }).select(
+      "hotelId certificateNumber level trustScore status issuedDate expiryDate",
+   );
+
+   const activeCertificatesByHotelId = new Map(
+      activeCerts.map((certificate) => [certificate.hotelId.toString(), certificate]),
+   );
+   const certifiedHotelIds = new Set(activeCerts.map((c) => c.hotelId.toString()));
+
+   // Only return those NOT already holding an ACTIVE certificate.
+   return reviewRequests
+      .filter((request) => !certifiedHotelIds.has(request.hotelId?._id?.toString()))
+      .map((request) => ({
+         hotelRequestId: request._id,
+         hotelId: request.hotelId?._id,
+         hotel: request.hotelId,
+         hotelScore: request.hotelScore,
+         auditScore: request.auditScore,
+         stage:
+            request.auditScore?.status === "passed"
+               ? "PENDING_CERTIFICATE"
+               : "PENDING_AUDIT_REVIEW",
+         alreadyCertified: false,
+         activeCertificate: (() => {
+            const activeCertificate = activeCertificatesByHotelId.get(
+               request.hotelId?._id?.toString(),
+            );
+            if (!activeCertificate) {
+               return null;
+            }
+
+            return {
+               certificateNumber: activeCertificate.certificateNumber,
+               level: activeCertificate.level,
+               trustScore: activeCertificate.trustScore,
+               status: activeCertificate.status,
+               issuedDate: activeCertificate.issuedDate,
+               expiryDate: activeCertificate.expiryDate,
+            };
+         })(),
+         createdAt: request.createdAt,
+         updatedAt: request.updatedAt,
+      }));
 };
 
 export const getCertificateOverviewStats = async () => {
@@ -1632,8 +1718,8 @@ export const updateCertificateTrustScore = async (
 export const getEligibleHotelsForCertification = async () => {
    // Find all hotel requests where both scores are passed
    const eligibleRequests = await HotelRequest.find({
-      hotelScore: { status: "passed" },
-      auditScore: { status: "passed" },
+      "hotelScore.status": "passed",
+      "auditScore.status": { $in: ["passed", "approved"] },
    }).populate("hotelId");
 
    if (!eligibleRequests.length) return [];

@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 
 const HotelSchema = new mongoose.Schema({
+    // Owner reference (used for access control and owner dashboards)
+    ownerUserId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false,
+        index: true,
+    },
     // 1. Basic Business Information
     businessInfo: {
         name: { type: String, required: true },

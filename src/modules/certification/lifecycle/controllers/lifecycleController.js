@@ -52,16 +52,36 @@ export const getHotelsWithCertificates = asyncHandler(async (req, res) => {
 export const getOwnerCertificates = asyncHandler(async (req, res) => {
    const { status } = req.query;
    const ownerEmail = req.user?.email;
+   const ownerUserId = req.user?._id;
 
    const certificates = await lifecycleService.getOwnerCertificatesByEmail(
       ownerEmail,
       status || null,
+      ownerUserId || null,
    );
 
+   res.set('Cache-Control', 'no-store');
    res.status(200).json({
       success: true,
       count: certificates.length,
       data: certificates,
+   });
+});
+
+export const getOwnerPendingReviewHotels = asyncHandler(async (req, res) => {
+   const ownerEmail = req.user?.email;
+   const ownerUserId = req.user?._id;
+
+   const pendingHotels = await lifecycleService.getOwnerPendingReviewHotelsByEmail(
+      ownerEmail,
+      ownerUserId || null,
+   );
+
+   res.set('Cache-Control', 'no-store');
+   res.status(200).json({
+      success: true,
+      count: pendingHotels.length,
+      data: pendingHotels,
    });
 });
 
