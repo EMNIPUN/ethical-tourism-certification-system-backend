@@ -25,6 +25,17 @@ const sortByCertificateLevelPriority = (a, b) => {
     return bTrustScore - aTrustScore;
 };
 
+const buildHotelImage = (hotel = {}) => {
+    const thumbnail = hotel?.googleMapsData?.thumbnail || null;
+    const placeId = hotel?.googleMapsData?.placeId || null;
+
+    return {
+        thumbnail,
+        placeId,
+        source: thumbnail || placeId ? 'google_maps' : null,
+    };
+};
+
 const buildFeedbackSummaryMap = async (hotelIds = []) => {
     if (!hotelIds.length) {
         return new Map();
@@ -75,6 +86,7 @@ const buildFeedbackSummaryMap = async (hotelIds = []) => {
 const toHotelContactResponse = (hotel, certificate, feedbackSummary) => ({
     hotelId: hotel._id,
     businessInfo: hotel.businessInfo,
+    hotelImage: buildHotelImage(hotel),
     certificate: certificate ? {
         certificateNumber: certificate.certificateNumber,
         issuedDate: certificate.issuedDate,
