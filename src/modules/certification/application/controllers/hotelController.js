@@ -27,6 +27,11 @@ export const createHotel = asyncHandler(async (req, res) => {
         throw new Error("Invalid JSON format in hotelData field.");
     }
 
+    // Persist ownership for Hotel Owner accounts (do not override if already set)
+    if (!hotelData.ownerUserId && req.user?._id) {
+        hotelData.ownerUserId = req.user._id;
+    }
+
     // 2. Process Files
     if (req.files) {
         // Legal Documents
@@ -136,7 +141,7 @@ export const getHotelCandidates = asyncHandler(async (req, res) => {
  * parses query parameters for filtering, sorting, limiting, and pagination.
  */
 export const getHotels = asyncHandler(async (req, res) => {
-    const hotels = await hotelService.getAllHotels(req.query);
+    const hotels = await hotelService.getAllHotels(req.query, req.user);
     res.status(200).json({ success: true, count: hotels.length, data: hotels });
 });
 
