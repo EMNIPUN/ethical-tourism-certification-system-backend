@@ -133,28 +133,29 @@ Use this section to add your submission screenshots.
 ### 1. Vercel Project Deployment Dashboard
 Insert screenshot path below:
 
-![Backend deployment dashboard screenshot](deployment/backend-vercel-dashboard.png)
+![photo_2026-04-12_10-22-34](https://github.com/user-attachments/assets/f7976f9b-791e-4190-b7fa-86297a84fcee)
 
 > Replace `deployment/backend-vercel-dashboard.png` with your actual screenshot path.
 
 ### 2. Live API Health Endpoint
 Insert screenshot path below:
 
-![Backend API health screenshot](deployment/backend-api-health.png)
+![photo_2026-04-12_10-28-19](https://github.com/user-attachments/assets/b0b5914d-ca24-4b01-9ef0-e0dce88d81e5)
+
 
 > Replace `deployment/backend-api-health.png` with your actual screenshot path.
 
 ### 3. Swagger API Docs in Production
 Insert screenshot path below:
 
-![Backend swagger screenshot](deployment/backend-swagger.png)
+![photo_2026-04-12_10-32-10](https://github.com/user-attachments/assets/7726614f-fa85-428f-ae7c-c6962ef1864a)
 
 > Replace `deployment/backend-swagger.png` with your actual screenshot path.
 
 ### 4. Environment Variables Configuration (Optional)
 Insert screenshot path below:
 
-![Backend env configuration screenshot](deployment/backend-env-vars.png)
+![photo_2026-04-12_10-32-07](https://github.com/user-attachments/assets/8a3f1d1a-0c36-47d9-ba46-037caf08e141)
 
 > Replace `deployment/backend-env-vars.png` with your actual screenshot path.
 
