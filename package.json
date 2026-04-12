@@ -31,7 +31,8 @@
     "cy:report:open": "start cypress\\reports\\mochawesome\\index.html",
     "cy:run:api:report": "npm run cy:run:api && npm run cy:report:open",
     "cy:run:all:report": "npm run cy:run:all && npm run cy:report:open",
-    "test:e2e": "npm run cy:run:api"
+    "test:e2e": "npm run cy:run:api",
+    "test": "node tests/testConfirmationFlow.js"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
