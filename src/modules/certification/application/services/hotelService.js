@@ -174,7 +174,7 @@ export const getHotelCandidates = async (hotelId, requesterEmail) => {
  * @param {Object} query - The query object from Express (req.query).
  * @returns {Promise<Array>} An array of hotel documents matching the criteria.
  */
-export const getAllHotels = async (query) => {
+export const getAllHotels = async (query, user = null) => {
     // 1. Filtering
     const queryObj = { ...query };
     const excludedFields = ['page', 'sort', 'limit', 'fields', 'search'];
@@ -185,6 +185,11 @@ export const getAllHotels = async (query) => {
     queryStr = queryStr.replace(/\b(gte|gt|lte|lt|regex|options)\b/g, (match) => `$${match}`);
 
     const mongoFilter = JSON.parse(queryStr);
+
+    // Role-based scoping: Hotel Owners only see their own hotels.
+    if (user?.role === 'Hotel Owner' && user?._id) {
+        mongoFilter.ownerUserId = user._id;
+    }
 
     // Dedicated full-text name search via ?search=...
     if (query.search && query.search.trim()) {

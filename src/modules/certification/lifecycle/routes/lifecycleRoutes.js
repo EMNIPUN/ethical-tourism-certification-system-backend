@@ -5,6 +5,7 @@ import {
    getHotelsWithCertificates,
    getOwnerCertificates,
    getEligibleHotels,
+   getOwnerPendingReviewHotels,
    getCertificateOverviewStats,
    getCertificateOverviewCharts,
    updateCertificateDetails,
@@ -322,6 +323,13 @@ router.get(
    protect,
    authorize("Hotel Owner"),
    getOwnerCertificates,
+);
+
+router.get(
+   "/certificates/owner/pending-review",
+   protect,
+   authorize("Hotel Owner"),
+   getOwnerPendingReviewHotels,
 );
 
 router.get(
