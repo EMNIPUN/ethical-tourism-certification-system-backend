@@ -1,0 +1,30 @@
+config:
+  # Base URL where your backend is running
+  target: "http://localhost:5000"
+  
+  # Load configuration
+  phases:
+    - duration: 60       # Run load for 60 seconds
+      arrivalRate: 5     # Start with 5 requests per second
+      rampTo: 20         # Increase load up to 20 requests per second
+      name: "Hotel Registration & Fetch Load"
+
+scenarios:
+  - name: "Browsing Hotel Directory"
+    weight: 3 # 3 times more likely to execute than registration scenario
+    flow:
+      - get:
+          url: "/hotels?page=1&limit=10"
+          expect:
+            - statusCode: 200
+
+  - name: "Creating Initial Hotel Registration"
+    weight: 1
+    flow:
+      - post:
+          url: "/hotels"
+          json:
+            # We must pass valid simulated strings that mimic Form-Data body
+            hotelData: '{"businessInfo": {"name": "Performance Test", "email": "load@test.com"}}'
+          expect:
+            - statusCode: 201
