@@ -99,6 +99,8 @@ Swagger UI is available at:
 ### Module Testing Instruction Files
 - Search testing instructions: [src/modules/search/SEARCH_TESTING_INSTRUCTIONS.md](src/modules/search/SEARCH_TESTING_INSTRUCTIONS.md)
 - Lifecycle testing instructions: [src/modules/certification/lifecycle/CETI_LIFECY_TESTING_INSTRUCTIONS.md](src/modules/certification/lifecycle/CETI_LIFECY_TESTING_INSTRUCTIONS.md)
+- Application testing instructions: [src/modules/certification/application/tests/CETI_APPLICATION_TESTING_INSTRUCTIONS.md](src/modules/certification/application/tests/CETI_APPLICATION_TESTING_INSTRUCTIONS.md)
+- Audit testing instructions: [src/modules/audit/tests/AUDIT_TESTING_INSTRUCTIONS.md](src/modules/audit/tests/AUDIT_TESTING_INSTRUCTIONS.md)
 
 
 ## Deployment
