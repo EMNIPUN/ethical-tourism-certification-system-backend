@@ -133,7 +133,7 @@ Use this section to add your submission screenshots.
 ### 1. Vercel Project Deployment Dashboard
 Insert screenshot path below:
 
-![Backend deployment dashboard screenshot](deployment/backend-vercel-dashboard.png)
+<img width="1886" height="777" alt="image" src="https://github.com/user-attachments/assets/3ca61845-0889-40bc-addb-88e413a12a56" />
 
 > Replace `deployment/backend-vercel-dashboard.png` with your actual screenshot path.
 
