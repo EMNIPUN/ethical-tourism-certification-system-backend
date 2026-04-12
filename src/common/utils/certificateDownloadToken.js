@@ -7,8 +7,8 @@ const getDownloadTokenSecret = () =>
 
 const getDownloadBaseUrl = () => {
    const explicitBase =
-      process.env.CERTIFICATE_DOWNLOAD_BASE_URL ||
       process.env.BACKEND_BASE_URL ||
+   process.env.CERTIFICATE_DOWNLOAD_BASE_URL ||
       process.env.API_BASE_URL ||
       "";
 
@@ -71,7 +71,7 @@ export const createCertificateDownloadLink = ({
 
    const baseUrl = getDownloadBaseUrl();
    const apiPrefix = getApiPrefix();
-   return `${baseUrl}${apiPrefix}/certification/certificates/download?token=${encodeURIComponent(token)}`;
+   return `${baseUrl}${apiPrefix}/certification/certificates/download?token=${encodeURIComponent(token)}&mode=file`;
 };
 
 export const verifyCertificateDownloadToken = (token) => {

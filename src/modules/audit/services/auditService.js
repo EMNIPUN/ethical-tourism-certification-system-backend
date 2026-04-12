@@ -1,6 +1,7 @@
 import Audit from '../models/Audit.js';
 import Hotel from '../../certification/application/models/Hotel.js';
 import User from '../../../common/models/User.js';
+import HotelRequest from '../../../common/models/HotelRequest.js';
 
 /**
  * Audit Service
@@ -380,7 +381,7 @@ class AuditService {
         if (hotel) {
             hotel.scoring.auditorScore = audit.overallScore;
 
-            // Recalculate total score (you might have different logic)
+            // Recalculate total score
             hotel.scoring.totalScore =
                 hotel.scoring.dataCompletionScore * 0.3 +
                 hotel.scoring.googleReviewScore * 0.3 +
@@ -398,6 +399,17 @@ class AuditService {
             }
 
             await hotel.save();
+        }
+
+        // Apply audit completion to the overarching HotelRequest pipeline
+        const hotelRequest = await HotelRequest.findOne({ hotelId: audit.hotel._id });
+        if (hotelRequest) {
+            if (completionData.recommendation === 'approve' || completionData.recommendation === 'conditional_approval') {
+                hotelRequest.auditScore.status = 'passed';
+            } else if (completionData.recommendation === 'reject') {
+                hotelRequest.auditScore.status = 'failed';
+            }
+            await hotelRequest.save();
         }
 
         // Add log entry
