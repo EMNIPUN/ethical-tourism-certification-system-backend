@@ -1,145 +1,177 @@
-# Hotel Certification System
+# Ethical Tourism Certification System Backend
 
-A specialized backend system for Hotel Certification, utilizing a **Feature-Based Architecture** to support parallel development.
+Backend service for the Ethical Tourism Certification platform, built with Node.js, Express, and MongoDB using a feature-based architecture.
 
-## 📚 Documentation & Guidelines
+## Quick Overview
+- Project: Ethical Tourism Certification System (Backend)
+- Purpose: Manage certification, search, lifecycle, audit, and related API workflows
+- Stack: Node.js, Express, MongoDB (Mongoose), JWT auth, Swagger
 
-Please read the specific documentation for the area you are working on:
+## Key Features
+- Feature-based modular architecture for parallel development
+- JWT authentication and authorization middleware
+- Search module with hotel discovery and feedback APIs
+- Certification application and lifecycle workflow support
+- Audit module with modular service/controller structure
+- API documentation via Swagger UI
+- Unit, integration, and performance testing support
 
-- **[Common Utilities & Guidelines](src/common/GUIDELINES.md)**: **START HERE**. detailed development rules and utility usage.
-- **[Application Module](src/modules/certification/application/GUIDELINES.md)**: (Sadeesha) Core application flow.
-- **[Search Module](src/modules/search/GUIDELINES.md)**: (Nipun) External search integration.
-- **[Audit Module](src/modules/audit/GUIDELINES.md)**: (Eric) Audit processes.
-- **[Lifecycle Module](src/modules/certification/lifecycle/GUIDELINES.md)**: (Sadeesha/Chathush) Expiry and renewal.
-
-## 🚀 Features
-
-- **Certification Management**: detailed hotel application, scoring, and verification process.
-- **Search Integration**: Google Hotels integration via SerpApi to fetch ratings.
-- **Modular Architecture**: domain-driven design (`certification`, `search`) to minimize merge conflicts.
-- **Swagger Documentation**: interactive API docs at `/api-docs`.
-
-## 📂 Project Structure
-
-The codebase is organized by **Feature Modules**.
-
-```
-src/
-├── common/                  # Shared resources
-│   ├── config/
-│   ├── middleware/
-│   ├── models/
-│   ├── swagger/
-│   ├── utils/
-│   ├── validations/
-│   ├── routes/              # [NEW] Auth routes
-│   └── controllers/         # [NEW] Auth controllers
-│
-├── modules/
-
-│   ├── audit/               # [Owner: Eric]
+## Project Structure
+```text
+ethical-tourism-certification-system-backend/
+├── api/
+│   └── index.js
+├── src/
+│   ├── common/
+│   │   ├── config/
 │   │   ├── controllers/
 │   │   ├── middleware/
+│   │   ├── models/
 │   │   ├── routes/
 │   │   ├── services/
+│   │   ├── swagger/
 │   │   ├── utils/
 │   │   └── validations/
-│   │
-│   ├── certification/       # [Owner: Sadeesha/Chathush]
-│   │   ├── application/     # Core Application Logic
-│   │   │   ├── controllers/
-│   │   │   ├── middleware/
-│   │   │   ├── routes/
-│   │   │   ├── services/
-│   │   │   ├── utils/
-│   │   │   └── validations/
-│   │   │
-│   │   └── lifecycle/       # [Placeholder] Status/Renewals
-│   │       ├── controllers/
-│   │       ├── middleware/
-│   │       ├── routes/
-│   │       ├── services/
-│   │       ├── utils/
-│   │       └── validations/
-│   │
-│   └── search/              # [Owner: Nipun]
-│       ├── controllers/
-│       ├── middleware/
-│       ├── routes/
-│       ├── services/
-│       ├── utils/
-│       └── validations/
+│   └── modules/
+│       ├── audit/
+│       ├── certification/
+│       │   ├── application/
+│       │   └── lifecycle/
+│       └── search/
+├── app.js
+├── server.js
+├── vercel.json
+└── package.json
 ```
 
-## 🛠️ Setup & Installation
+## Documentation and Module Guidelines
+- Common guidelines: [src/common/GUIDELINES.md](src/common/GUIDELINES.md)
+- Search module guidelines: [src/modules/search/GUIDELINES.md](src/modules/search/GUIDELINES.md)
+- Audit module docs: [src/modules/audit/README.md](src/modules/audit/README.md)
+- Lifecycle testing docs: [src/modules/certification/lifecycle/TESTING_GUIDE.md](src/modules/certification/lifecycle/TESTING_GUIDE.md)
 
-1.  **Install Dependencies**:
-    ```bash
-    npm install
-    ```
+## Local Development
 
-2.  **Environment Variables**:
-    Create a `.env` file in the root directory:
-    ```env
-    PORT=5000
-    MONGO_URI=your_mongodb_connection_string
-    SERPAPI_KEY=your_serpapi_key
-    NODE_ENV=development
-    JWT_SECRET=your_super_secret_jwt_key
-    JWT_EXPIRE=30d
-    JWT_COOKIE_EXPIRE=30
-    ```
+### Prerequisites
+- Node.js 22+
+- npm
+- MongoDB instance (local or Atlas)
 
-3.  **Run the Server**:
-    ```bash
-    npm run dev
-    ```
-    The server will start on `http://localhost:5000`.
+### Installation
+```bash
+npm install
+```
 
-## 📖 API Documentation
+### Environment Variables
+Create a `.env` file in the backend root:
 
-Swagger UI is available at **[http://localhost:5000/api/v1/api-docs](http://localhost:5000/api/v1/api-docs)**.
+```env
+PORT=5000
+NODE_ENV=development
+MONGO_URI=your_mongodb_connection_string
 
-## ▲ Deploy to Vercel
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRE=30d
+JWT_COOKIE_EXPIRE=30
 
-This project is configured for Vercel serverless deployment using:
+SERPAPI_KEY=your_serpapi_key
+SENDGRID_API_KEY=your_sendgrid_key
+```
 
-- `api/index.js` as the serverless entry.
-- `vercel.json` to route requests.
+Add any additional module-specific keys used in your environment.
 
-### 1) Push your code
+### Run Server
+```bash
+npm run dev
+```
 
-Push this repository to GitHub (or GitLab/Bitbucket).
+Production mode:
+```bash
+npm start
+```
 
-### 2) Import project in Vercel
+## API Documentation
+Swagger UI is available at:
+- Local: http://localhost:5000/api/v1/api-docs
 
-1. Open Vercel dashboard.
-2. Click **New Project**.
-3. Import this repository.
-4. Keep the default build settings for a Node.js project.
+## Testing
 
-### 3) Configure environment variables
+### Module Testing Instruction Files
+- Search testing instructions: [src/modules/search/SEARCH_TESTING_INSTRUCTIONS.md](src/modules/search/SEARCH_TESTING_INSTRUCTIONS.md)
+- Lifecycle testing instructions: [src/modules/certification/lifecycle/CETI_LIFECY_TESTING_INSTRUCTIONS.md](src/modules/certification/lifecycle/CETI_LIFECY_TESTING_INSTRUCTIONS.md)
 
-Add these variables in Vercel Project Settings → **Environment Variables**:
 
+## Deployment
+
+### Backend Deployment Platform and Setup
+- Platform: Vercel (serverless entry: `api/index.js`)
+- Config: `vercel.json`
+
+Setup steps:
+1. Push backend code to your Git repository.
+2. Import repository into Vercel.
+3. Configure environment variables in Vercel dashboard.
+4. Deploy and verify API health and Swagger endpoints.
+
+### Environment Variables (Production)
+Define these in your deployment environment:
+- `PORT`
+- `NODE_ENV`
 - `MONGO_URI`
-- `SERPAPI_KEY`
-- `NODE_ENV` (set to `production`)
 - `JWT_SECRET`
 - `JWT_EXPIRE`
 - `JWT_COOKIE_EXPIRE`
-- `SENDGRID_API_KEY` (if email features are used)
+- `SERPAPI_KEY`
+- `SENDGRID_API_KEY`
 
-### 4) Deploy
+Add any additional secrets required by your active modules.
 
-Click **Deploy**. After deployment, your endpoints will be available as:
+## Deployment Evidence (Screenshot Placeholders)
 
-- Health check: `https://<your-vercel-domain>/api/v1/`
-- Swagger: `https://<your-vercel-domain>/api/v1/api-docs`
+Use this section to add your submission screenshots.
 
-## 🧪 Testing
+### 1. Vercel Project Deployment Dashboard
+Insert screenshot path below:
 
-Run the end-to-end confirmation flow test:
+![Backend deployment dashboard screenshot](deployment/backend-vercel-dashboard.png)
+
+> Replace `deployment/backend-vercel-dashboard.png` with your actual screenshot path.
+
+### 2. Live API Health Endpoint
+Insert screenshot path below:
+
+![Backend API health screenshot](deployment/backend-api-health.png)
+
+> Replace `deployment/backend-api-health.png` with your actual screenshot path.
+
+### 3. Swagger API Docs in Production
+Insert screenshot path below:
+
+![Backend swagger screenshot](deployment/backend-swagger.png)
+
+> Replace `deployment/backend-swagger.png` with your actual screenshot path.
+
+### 4. Environment Variables Configuration (Optional)
+Insert screenshot path below:
+
+![Backend env configuration screenshot](deployment/backend-env-vars.png)
+
+> Replace `deployment/backend-env-vars.png` with your actual screenshot path.
+
+## Troubleshooting
+- `MONGO_URI` connection failures: verify URI and network whitelist.
+- Auth errors (`401/403`): verify JWT secret and token expiry settings.
+- Missing module env vars: check module-specific `.env` keys.
+- Vercel runtime issues: confirm `api/index.js` export and `vercel.json` routes.
+
+## Useful Commands
 ```bash
-npm test
+npm run dev
+npm start
+npm run test:unit
+npm run test:integration
+npm run test:search
+npm run perf:search
+npm run test:lifecycle
+npm run perf:lifecycle
 ```
