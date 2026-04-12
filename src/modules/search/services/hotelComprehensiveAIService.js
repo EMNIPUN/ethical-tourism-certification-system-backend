@@ -9,6 +9,17 @@ const createServiceError = (message, statusCode = 500) => {
     return error;
 };
 
+const buildHotelImage = (hotel = {}) => {
+    const thumbnail = hotel?.googleMapsData?.thumbnail || null;
+    const placeId = hotel?.googleMapsData?.placeId || null;
+
+    return {
+        thumbnail,
+        placeId,
+        source: thumbnail || placeId ? 'google_maps' : null,
+    };
+};
+
 /**
  * Get comprehensive AI recommendations for all hotels
  * Analyzes all feedbacks across hotels and returns ranked recommendations
@@ -19,7 +30,7 @@ export const getAIHotelRecommendations = async () => {
 
         // 1. Fetch all active certificates with hotel data
         const certificates = await Certificate.find({ status: 'ACTIVE' })
-            .populate('hotelId', 'businessInfo guestServices scoring')
+            .populate('hotelId', 'businessInfo guestServices scoring googleMapsData')
             .lean();
 
         console.info(`${LOG_PREFIX} Active certificates fetched: ${certificates.length}`);
@@ -54,6 +65,7 @@ export const getAIHotelRecommendations = async () => {
                     reviewCount: feedbacks.length,
                     feedbackTexts,
                     certificateNumber: cert.certificateNumber,
+                    hotelImage: buildHotelImage(cert.hotelId),
                 };
             })
         );
@@ -126,6 +138,7 @@ export const getAIHotelRecommendations = async () => {
                 combinedScore: bestHotel.combinedScore,
                 certificateNumber: bestHotel.certificateNumber,
                 gps: bestHotel.gps,
+                hotelImage: bestHotel.hotelImage,
                 recommendation: aiRanking.bestHotelReason,
             } : null,
             topHotels: rankedHotels.slice(0, 5).map((h, index) => ({
@@ -139,6 +152,7 @@ export const getAIHotelRecommendations = async () => {
                 feedbackRating: h.feedbackRating,
                 reviewCount: h.reviewCount,
                 combinedScore: h.combinedScore,
+                hotelImage: h.hotelImage,
             })),
             aiAnalysis: aiRanking.analysis,
             totalCertifiedHotels: validHotels.length,
