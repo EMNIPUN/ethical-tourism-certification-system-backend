@@ -1,0 +1,37 @@
+config:
+  # The URL where your backend is running locally
+  target: "http://localhost:5000"
+  
+  # Define test phases
+  phases:
+    - duration: 60       # Run for 60 seconds
+      arrivalRate: 10    # Start with 10 new virtual "users" arriving per second
+      rampTo: 50         # Gradually increase up to 50 users per second 
+      name: "Sustained peak load test"
+
+  # Environmental variables 
+  variables:
+    adminToken: "YOUR_ADMIN_JWT_TOKEN_HERE"
+
+scenarios:
+  - name: "Scenario 1: Fetch audits list"
+    flow:
+      # GET request to fetch audits
+      - get:
+          url: "/api/v1/audits?page=1&limit=20&sortBy=createdAt&order=desc"
+          headers:
+            Authorization: "Bearer {{ adminToken }}"
+          # Optional: add expected response assertions
+          expect:
+            # We expect a 200/401/403 status code for the response depending on the auth
+            - statusCode: 200
+
+  - name: "Scenario 2: Admin checking stats"
+    weight: 2 # This scenario runs twice as often as the first one
+    flow:
+      - get:
+          url: "/api/v1/audits/stats/overview"
+          headers:
+            Authorization: "Bearer {{ adminToken }}"
+          expect:
+            - statusCode: 200
